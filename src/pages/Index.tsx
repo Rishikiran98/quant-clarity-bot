@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import Hero from "@/components/Hero";
 import QueryInterface from "@/components/QueryInterface";
 import MetricsDashboard from "@/components/MetricsDashboard";

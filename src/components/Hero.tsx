@@ -1,3 +1,4 @@
+import React from "react";
 import { Database, FileText, GitBranch, LineChart } from "lucide-react";
 import AnimatedCounter from "./AnimatedCounter";
 
