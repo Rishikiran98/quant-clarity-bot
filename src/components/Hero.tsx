@@ -1,4 +1,5 @@
 import { Database, FileText, GitBranch, LineChart } from "lucide-react";
+import AnimatedCounter from "./AnimatedCounter";
 
 const Hero = () => {
   return (
@@ -22,27 +23,35 @@ const Hero = () => {
           </p>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-12">
-            <div className="p-6 rounded-lg border border-border bg-card/50 backdrop-blur transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5">
+            <div className="p-6 rounded-lg border border-border bg-card/50 backdrop-blur transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 hover:scale-105 animate-fade-in">
               <Database className="w-8 h-8 text-primary mb-3 mx-auto" />
-              <div className="text-2xl font-bold text-foreground mb-1">15K+</div>
+              <div className="text-2xl font-bold text-foreground mb-1">
+                <AnimatedCounter end={15} duration={2000} />K+
+              </div>
               <div className="text-sm text-muted-foreground">Documents Indexed</div>
             </div>
             
-            <div className="p-6 rounded-lg border border-border bg-card/50 backdrop-blur transition-all hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5">
+            <div className="p-6 rounded-lg border border-border bg-card/50 backdrop-blur transition-all hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5 hover:scale-105 animate-fade-in" style={{ animationDelay: '100ms' }}>
               <FileText className="w-8 h-8 text-accent mb-3 mx-auto" />
-              <div className="text-2xl font-bold text-foreground mb-1">98.7%</div>
+              <div className="text-2xl font-bold text-foreground mb-1">
+                <AnimatedCounter end={98.7} decimals={1} duration={2000} />%
+              </div>
               <div className="text-sm text-muted-foreground">Grounding Precision</div>
             </div>
             
-            <div className="p-6 rounded-lg border border-border bg-card/50 backdrop-blur transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5">
+            <div className="p-6 rounded-lg border border-border bg-card/50 backdrop-blur transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 hover:scale-105 animate-fade-in" style={{ animationDelay: '200ms' }}>
               <LineChart className="w-8 h-8 text-primary mb-3 mx-auto" />
-              <div className="text-2xl font-bold text-foreground mb-1">1.2s</div>
+              <div className="text-2xl font-bold text-foreground mb-1">
+                <AnimatedCounter end={1.2} decimals={1} duration={2000} />s
+              </div>
               <div className="text-sm text-muted-foreground">Avg Latency</div>
             </div>
             
-            <div className="p-6 rounded-lg border border-border bg-card/50 backdrop-blur transition-all hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5">
+            <div className="p-6 rounded-lg border border-border bg-card/50 backdrop-blur transition-all hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5 hover:scale-105 animate-fade-in" style={{ animationDelay: '300ms' }}>
               <GitBranch className="w-8 h-8 text-accent mb-3 mx-auto" />
-              <div className="text-2xl font-bold text-foreground mb-1">0.3%</div>
+              <div className="text-2xl font-bold text-foreground mb-1">
+                <AnimatedCounter end={0.3} decimals={1} duration={2000} />%
+              </div>
               <div className="text-sm text-muted-foreground">Hallucination Rate</div>
             </div>
           </div>

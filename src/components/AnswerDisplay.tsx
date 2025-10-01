@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, MessageSquare, Copy, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Props {
   answer: string;
@@ -8,6 +11,27 @@ interface Props {
 }
 
 const AnswerDisplay = ({ answer, chunksCount }: Props) => {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(answer);
+      setCopied(true);
+      toast({
+        title: "Copied to clipboard",
+        description: "Answer has been copied successfully",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Parse answer to highlight citations
   const renderAnswerWithCitations = (text: string) => {
     const parts = text.split(/(\[Source:.*?\])/g);
@@ -28,13 +52,34 @@ const AnswerDisplay = ({ answer, chunksCount }: Props) => {
   };
 
   return (
-    <Card className="p-6 border-border bg-card">
-      <div className="flex items-center gap-3 mb-6">
-        <MessageSquare className="w-6 h-6 text-accent" />
-        <div>
-          <h3 className="text-xl font-bold">Grounded Answer</h3>
-          <p className="text-sm text-muted-foreground">LLM response with source attribution</p>
+    <Card className="p-6 border-border bg-card animate-fade-in">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <MessageSquare className="w-6 h-6 text-accent" />
+          <div>
+            <h3 className="text-xl font-bold">Grounded Answer</h3>
+            <p className="text-sm text-muted-foreground">LLM response with source attribution</p>
+          </div>
         </div>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCopy}
+          className="gap-2"
+        >
+          {copied ? (
+            <>
+              <Check className="w-4 h-4" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" />
+              Copy
+            </>
+          )}
+        </Button>
       </div>
 
       <div className="mb-6">

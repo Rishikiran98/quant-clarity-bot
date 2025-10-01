@@ -63,6 +63,14 @@ const QueryInterface = () => {
       setAnswer(data.answer);
       setShowResults(true);
       
+      // Add to history
+      const avgSimilarity = data.retrievedChunks.reduce((sum: number, chunk: any) => 
+        sum + chunk.similarity, 0) / data.retrievedChunks.length;
+      
+      if ((window as any).addToQueryHistory) {
+        (window as any).addToQueryHistory(query, data.retrievedChunks.length, avgSimilarity);
+      }
+      
       toast({
         title: "Query Processed",
         description: `Retrieved ${data.retrievedChunks.length} relevant documents`,

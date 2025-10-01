@@ -1,17 +1,21 @@
+import { useState } from "react";
 import Hero from "@/components/Hero";
 import QueryInterface from "@/components/QueryInterface";
 import MetricsDashboard from "@/components/MetricsDashboard";
 import ArchitectureDiagram from "@/components/ArchitectureDiagram";
 import SimilarityHeatmap from "@/components/SimilarityHeatmap";
 import DriftMonitoring from "@/components/DriftMonitoring";
+import QueryHistory from "@/components/QueryHistory";
 
 const Index = () => {
+  const [selectedQuery, setSelectedQuery] = useState<string>("");
+
   return (
     <div className="min-h-screen bg-background">
       <Hero />
       <QueryInterface />
       
-      {/* Advanced Visualizations */}
+      {/* Advanced Visualizations with Query History */}
       <section className="container mx-auto px-6 py-12 border-t border-border">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
@@ -21,9 +25,14 @@ const Index = () => {
             </p>
           </div>
           
-          <div className="grid lg:grid-cols-2 gap-6 mb-6">
-            <SimilarityHeatmap />
-            <DriftMonitoring />
+          <div className="grid lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2 space-y-6">
+              <SimilarityHeatmap />
+              <DriftMonitoring />
+            </div>
+            <div>
+              <QueryHistory onSelectQuery={setSelectedQuery} />
+            </div>
           </div>
         </div>
       </section>
