@@ -1,0 +1,4 @@
+project_id = "xfplgwsnvjfbfczdbcft"
+
+[functions.financial-rag-query]
+verify_jwt = false

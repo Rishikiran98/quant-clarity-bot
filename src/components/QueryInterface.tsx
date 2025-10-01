@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, Search, FileText } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import RetrievalVisualization from "./RetrievalVisualization";
 import AnswerDisplay from "./AnswerDisplay";
 
@@ -12,12 +13,25 @@ const exampleQueries = [
   "What insurance risks does Progressive report regarding climate change?",
 ];
 
+interface RetrievedChunk {
+  id: string;
+  content: string;
+  source: string;
+  similarity: number;
+  metadata: {
+    ticker: string;
+    fiscal_year: number;
+    category: string;
+  };
+}
+
 const QueryInterface = () => {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [retrievedChunks, setRetrievedChunks] = useState<any[]>([]);
+  const [retrievedChunks, setRetrievedChunks] = useState<RetrievedChunk[]>([]);
   const [answer, setAnswer] = useState("");
+  const { toast } = useToast();
 
   const handleSubmit = async () => {
     if (!query.trim()) return;
@@ -25,49 +39,44 @@ const QueryInterface = () => {
     setIsLoading(true);
     setShowResults(false);
     
-    // Simulate retrieval process
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Mock retrieved chunks
-    const mockChunks = [
-      {
-        id: 1,
-        content: "Risk Factor: Supply Chain Disruptions - We are subject to risks associated with supply chain disruptions...",
-        source: "Tesla 10-K 2024, Page 23",
-        similarity: 0.94,
-        metadata: { ticker: "TSLA", fiscal_year: 2024, category: "Risk Factors" }
-      },
-      {
-        id: 2,
-        content: "Material weaknesses in our internal controls could result in material misstatements...",
-        source: "Tesla 10-K 2024, Page 45",
-        similarity: 0.87,
-        metadata: { ticker: "TSLA", fiscal_year: 2024, category: "Controls & Procedures" }
-      },
-      {
-        id: 3,
-        content: "Competition in the automotive industry is intense and increasing...",
-        source: "Tesla 10-K 2024, Page 18",
-        similarity: 0.82,
-        metadata: { ticker: "TSLA", fiscal_year: 2024, category: "Business Overview" }
+    try {
+      // Call the real edge function
+      const response = await fetch(
+        'https://xfplgwsnvjfbfczdbcft.supabase.co/functions/v1/financial-rag-query',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process query');
       }
-    ];
-    
-    setRetrievedChunks(mockChunks);
-    
-    // Mock LLM response
-    await new Promise(resolve => setTimeout(resolve, 1200));
-    
-    setAnswer(`Based on Tesla's latest 10-K filing, several key risk factors are disclosed:
 
-**Supply Chain & Production Risks**: Tesla faces significant risks from supply chain disruptions, particularly in sourcing battery cells and semiconductors. The company acknowledges potential impacts on production capacity and delivery timelines [Source: Tesla 10-K 2024, Page 23].
-
-**Internal Controls**: Material weaknesses in internal controls over financial reporting could result in misstatements in financial documents, affecting investor confidence and regulatory compliance [Source: Tesla 10-K 2024, Page 45].
-
-**Competitive Pressure**: The automotive industry competition is intensifying, with both traditional automakers and new EV startups challenging Tesla's market position. This could impact pricing power and market share [Source: Tesla 10-K 2024, Page 18].`);
-    
-    setIsLoading(false);
-    setShowResults(true);
+      const data = await response.json();
+      
+      setRetrievedChunks(data.retrievedChunks);
+      setAnswer(data.answer);
+      setShowResults(true);
+      
+      toast({
+        title: "Query Processed",
+        description: `Retrieved ${data.retrievedChunks.length} relevant documents`,
+      });
+    } catch (error) {
+      console.error('Query error:', error);
+      toast({
+        title: "Query Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -89,6 +98,12 @@ const QueryInterface = () => {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Enter your financial or insurance-related query..."
             className="min-h-[120px] mb-4 bg-background/50 border-border"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
           />
           
           <div className="flex flex-wrap gap-2 mb-4">
@@ -128,7 +143,7 @@ const QueryInterface = () => {
         {showResults && (
           <div className="grid md:grid-cols-2 gap-6">
             <RetrievalVisualization chunks={retrievedChunks} />
-            <AnswerDisplay answer={answer} />
+            <AnswerDisplay answer={answer} chunksCount={retrievedChunks.length} />
           </div>
         )}
       </div>

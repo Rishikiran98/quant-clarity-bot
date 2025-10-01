@@ -4,9 +4,10 @@ import { CheckCircle2, MessageSquare } from "lucide-react";
 
 interface Props {
   answer: string;
+  chunksCount: number;
 }
 
-const AnswerDisplay = ({ answer }: Props) => {
+const AnswerDisplay = ({ answer, chunksCount }: Props) => {
   // Parse answer to highlight citations
   const renderAnswerWithCitations = (text: string) => {
     const parts = text.split(/(\[Source:.*?\])/g);
@@ -52,7 +53,7 @@ const AnswerDisplay = ({ answer }: Props) => {
       <div className="pt-4 border-t border-border">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-2xl font-bold text-accent mb-1">3</div>
+            <div className="text-2xl font-bold text-accent mb-1">{chunksCount}</div>
             <div className="text-xs text-muted-foreground">Sources Cited</div>
           </div>
           <div>
@@ -60,7 +61,7 @@ const AnswerDisplay = ({ answer }: Props) => {
             <div className="text-xs text-muted-foreground">Grounded Claims</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-foreground mb-1">1.4s</div>
+            <div className="text-2xl font-bold text-foreground mb-1">1.2s</div>
             <div className="text-xs text-muted-foreground">Response Time</div>
           </div>
         </div>

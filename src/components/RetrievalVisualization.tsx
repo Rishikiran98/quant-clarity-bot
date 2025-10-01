@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, TrendingUp } from "lucide-react";
 
 interface Chunk {
-  id: number;
+  id: string | number;
   content: string;
   source: string;
   similarity: number;
