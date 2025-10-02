@@ -20,7 +20,7 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, signOut, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -51,9 +51,16 @@ const Auth = () => {
         const { error } = await signUp(email, password);
         if (error) throw error;
         
+        // Sign out immediately to prevent auto-login
+        await signOut();
+        
+        // Switch to login tab and clear password
+        setMode('login');
+        setPassword('');
+        
         toast({
           title: 'Account Created',
-          description: 'You can now sign in with your credentials'
+          description: 'Please sign in with your credentials'
         });
       } else {
         const { error } = await signIn(email, password);
