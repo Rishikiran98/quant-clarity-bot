@@ -74,13 +74,36 @@ jobs:
         with:
           deno-version: v1.x
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase local instance
+        run: supabase start
+
+      - name: Wait for Supabase to be ready
+        run: |
+          echo "Waiting for Supabase to be ready..."
+          sleep 60
+
+      - name: Get local Supabase credentials
+        id: supabase-creds
+        run: |
+          echo "SUPABASE_URL=http://127.0.0.1:54321" >> $GITHUB_OUTPUT
+          echo "SUPABASE_ANON_KEY=$(supabase status | grep 'anon key' | awk '{print $3}')" >> $GITHUB_OUTPUT
+
       - name: Run integration tests
         run: |
           export RUN_INTEGRATION_TESTS=true
           deno test --allow-net --allow-env tests/integration/rag-workflow.test.ts
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_URL: ${{ steps.supabase-creds.outputs.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ steps.supabase-creds.outputs.SUPABASE_ANON_KEY }}
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
 
   # Load testing with k6
   load-tests:
