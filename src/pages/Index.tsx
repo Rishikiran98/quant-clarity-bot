@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import Hero from "@/components/Hero";
+import DashboardHeader from "@/components/DashboardHeader";
+import KPICards from "@/components/KPICards";
+import ProfileSidebar from "@/components/ProfileSidebar";
 import QueryInterface from "@/components/QueryInterface";
 import MetricsDashboard from "@/components/MetricsDashboard";
 import ArchitectureDiagram from "@/components/ArchitectureDiagram";
@@ -12,38 +14,94 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Hero />
-      <QueryInterface />
+      <DashboardHeader />
       
-      {/* Advanced Visualizations with Query History */}
-      <section className="container mx-auto px-6 py-12 border-t border-border">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold mb-3">Advanced Analytics</h2>
-            <p className="text-muted-foreground">
-              Deep insights into retrieval quality and system performance
+      {/* Hero Section */}
+      <section className="border-b border-border bg-gradient-to-br from-background via-card/30 to-background">
+        <div className="container mx-auto px-6 py-12">
+          <div className="max-w-4xl">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+              Financial Intelligence Dashboard
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl">
+              AI-powered document retrieval and analysis system for financial data. 
+              Get instant insights with grounded, auditable responses.
             </p>
-          </div>
-          
-          <div className="grid lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2 space-y-6">
-              <SimilarityHeatmap />
-              <DriftMonitoring />
-            </div>
-            <div>
-              <QueryHistory onSelectQuery={setSelectedQuery} />
-            </div>
           </div>
         </div>
       </section>
-      
-      <MetricsDashboard />
-      <ArchitectureDiagram />
+
+      {/* Main Dashboard Content */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="grid lg:grid-cols-4 gap-6">
+          {/* Left Sidebar - Profile */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <ProfileSidebar />
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="lg:col-span-3 space-y-8">
+            {/* KPI Cards */}
+            <section>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold">Overview</h2>
+                <p className="text-sm text-muted-foreground">
+                  Key performance indicators for your RAG system
+                </p>
+              </div>
+              <KPICards />
+            </section>
+
+            {/* Query Interface */}
+            <section>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold">Query Engine</h2>
+                <p className="text-sm text-muted-foreground">
+                  Ask questions and get AI-powered insights from your documents
+                </p>
+              </div>
+              <QueryInterface />
+            </section>
+
+            {/* Analytics Grid */}
+            <section>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold">Advanced Analytics</h2>
+                <p className="text-sm text-muted-foreground">
+                  Deep insights into retrieval quality and system performance
+                </p>
+              </div>
+              
+              <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                  <SimilarityHeatmap />
+                  <DriftMonitoring />
+                </div>
+                <div>
+                  <QueryHistory onSelectQuery={setSelectedQuery} />
+                </div>
+              </div>
+            </section>
+
+            {/* System Metrics */}
+            <section>
+              <MetricsDashboard />
+            </section>
+
+            {/* Architecture */}
+            <section>
+              <ArchitectureDiagram />
+            </section>
+          </div>
+        </div>
+      </div>
       
       <footer className="border-t border-border py-8 mt-12">
         <div className="container mx-auto px-6 text-center text-muted-foreground">
           <p className="text-sm">
-            Financial RAG System Demo • Powered by Lovable AI (Gemini 2.5 Flash)
+            Financial RAG System • Powered by Lovable AI (Gemini 2.5 Flash)
           </p>
           <p className="text-xs mt-2">
             Production-grade LLMOps pipeline for grounded, auditable financial intelligence
