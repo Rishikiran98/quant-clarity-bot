@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_usage: {
+        Row: {
+          endpoint: string
+          id: number
+          ts: string
+          user_id: string
+        }
+        Insert: {
+          endpoint: string
+          id?: number
+          ts?: string
+          user_id: string
+        }
+        Update: {
+          endpoint?: string
+          id?: number
+          ts?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      document_chunks: {
+        Row: {
+          chunk_index: number
+          created_at: string
+          document_id: string
+          id: string
+          metadata: Json | null
+          text: string
+        }
+        Insert: {
+          chunk_index: number
+          created_at?: string
+          document_id: string
+          id?: string
+          metadata?: Json | null
+          text: string
+        }
+        Update: {
+          chunk_index?: number
+          created_at?: string
+          document_id?: string
+          id?: string
+          metadata?: Json | null
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           content: string
@@ -23,6 +79,7 @@ export type Database = {
           id: string
           metadata: Json | null
           mime_type: string | null
+          owner_id: string | null
           source: string
           title: string
           updated_at: string
@@ -36,6 +93,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           mime_type?: string | null
+          owner_id?: string | null
           source: string
           title: string
           updated_at?: string
@@ -49,12 +107,55 @@ export type Database = {
           id?: string
           metadata?: Json | null
           mime_type?: string | null
+          owner_id?: string | null
           source?: string
           title?: string
           updated_at?: string
           uploaded_by?: string | null
         }
         Relationships: []
+      }
+      embeddings: {
+        Row: {
+          chunk_id: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          chunk_id: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: never
+          metadata?: Json | null
+        }
+        Update: {
+          chunk_id?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: never
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "embeddings_chunk_id_fkey"
+            columns: ["chunk_id"]
+            isOneToOne: false
+            referencedRelation: "document_chunks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "embeddings_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -202,12 +303,128 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: string
+      }
+      over_limit: {
+        Args: { p_limit: number; p_user: string }
+        Returns: boolean
+      }
+      search_documents: {
+        Args: {
+          match_count?: number
+          p_user_id?: string
+          query_embedding: string
+        }
+        Returns: {
+          chunk_id: string
+          chunk_metadata: Json
+          chunk_text: string
+          doc_source: string
+          doc_title: string
+          document_id: string
+          similarity: number
+        }[]
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
       }
     }
     Enums: {

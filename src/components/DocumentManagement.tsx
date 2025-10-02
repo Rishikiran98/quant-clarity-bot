@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,28 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+
+// Validation constants and schema
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+const uploadSchema = z.object({
+  file: z.custom<File>(
+    (f) => f instanceof File && f.size > 0,
+    "File is required"
+  ).refine(
+    (f) => f.size <= MAX_FILE_SIZE,
+    `File size must be less than 25MB`
+  ).refine(
+    (f) => ['application/pdf', 'text/plain', 'text/html', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'].includes(f.type),
+    "File must be PDF, TXT, HTML, DOC, or DOCX"
+  ),
+  title: z.string().trim().min(1, "Title is required").max(200, "Title must be less than 200 characters"),
+  source: z.string().trim().max(100, "Source must be less than 100 characters").optional()
+});
+
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^\w.\-]/g, "_").slice(0, 128);
+}
 
 interface Document {
   id: string;
@@ -109,6 +132,26 @@ const DocumentManagement = () => {
       return;
     }
 
+    // Validate file if provided
+    if (newDoc.file) {
+      try {
+        uploadSchema.parse({
+          file: newDoc.file,
+          title: newDoc.title,
+          source: newDoc.source || undefined
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          toast({
+            title: 'Validation Error',
+            description: error.errors[0].message,
+            variant: 'destructive'
+          });
+        }
+        return;
+      }
+    }
+
     setUploading(true);
 
     try {
@@ -119,7 +162,8 @@ const DocumentManagement = () => {
       // Upload file to storage if provided
       if (newDoc.file) {
         const fileExt = newDoc.file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const safeName = sanitizeFilename(newDoc.file.name.replace(/\.[^/.]+$/, ""));
+        const fileName = `${safeName}_${Date.now()}.${fileExt}`;
         filePath = `${user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
@@ -134,7 +178,7 @@ const DocumentManagement = () => {
         mimeType = newDoc.file.type;
       }
 
-      // Insert document record
+      // Insert document record with owner_id for RLS
       const { error: insertError } = await supabase
         .from('documents')
         .insert({
@@ -144,7 +188,8 @@ const DocumentManagement = () => {
           file_path: filePath,
           file_size: fileSize,
           mime_type: mimeType,
-          uploaded_by: user.id
+          uploaded_by: user.id,
+          owner_id: user.id // Set owner for RLS
         });
 
       if (insertError) {
@@ -314,7 +359,7 @@ const DocumentManagement = () => {
                     onChange={(e) => setNewDoc({ ...newDoc, file: e.target.files?.[0] || null })}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Supported: PDF, TXT, DOC, DOCX (Max 50MB)
+                    Supported: PDF, TXT, DOC, DOCX, HTML (Max 25MB)
                   </p>
                 </div>
                 <Button onClick={handleFileUpload} disabled={uploading} className="w-full">
