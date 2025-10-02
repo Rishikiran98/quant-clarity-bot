@@ -490,8 +490,87 @@ export type Database = {
         }
         Relationships: []
       }
+      v_user_api_usage_safe: {
+        Row: {
+          endpoint: string | null
+          id: number | null
+          ts: string | null
+          user_id: string | null
+        }
+        Insert: {
+          endpoint?: string | null
+          id?: number | null
+          ts?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          endpoint?: string | null
+          id?: number | null
+          ts?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      admin_v_cost_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          day: string | null
+          embedding_cost_usd: number | null
+          llm_cost_usd: number | null
+          total_chunks_retrieved: number | null
+          total_cost_usd: number | null
+          total_queries: number | null
+        }[]
+      }
+      admin_v_error_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          affected_users: number | null
+          endpoint: string | null
+          error_code: string | null
+          error_count: number | null
+          minute: string | null
+          sample_messages: string[] | null
+        }[]
+      }
+      admin_v_perf_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avg_chunks: number | null
+          avg_latency: number | null
+          avg_similarity: number | null
+          endpoint: string | null
+          minute: string | null
+          p50_latency: number | null
+          p95_latency: number | null
+          p99_latency: number | null
+          requests: number | null
+        }[]
+      }
+      admin_v_rate_limit_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          endpoint: string | null
+          max_ip_rpm: number | null
+          max_user_rpm: number | null
+          minute: string | null
+          total_requests: number | null
+          unique_ips: number | null
+          unique_users: number | null
+        }[]
+      }
+      admin_v_system_health: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avg_latency_5min: number | null
+          errors_5min: number | null
+          requests_1min: number | null
+          requests_5min: number | null
+          status: string | null
+        }[]
+      }
       get_cost_summary: {
         Args: Record<PropertyKey, never>
         Returns: {
