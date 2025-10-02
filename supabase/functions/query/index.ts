@@ -1,4 +1,5 @@
 // Production-ready RAG query endpoint with monitoring, rate limiting, and error tracking
+// All error responses include error_code, message, and requestId for proper test validation
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -44,8 +45,16 @@ serve(async (req) => {
   const start = performance.now();
   const requestId = crypto.randomUUID();
   
+  // CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS });
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
+      },
+    });
   }
 
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim() || "0.0.0.0";
