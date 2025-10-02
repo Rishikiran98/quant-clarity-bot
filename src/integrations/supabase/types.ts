@@ -411,7 +411,64 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_cost_summary: {
+        Row: {
+          day: string | null
+          embedding_cost_usd: number | null
+          llm_cost_usd: number | null
+          total_chunks_retrieved: number | null
+          total_cost_usd: number | null
+          total_queries: number | null
+        }
+        Relationships: []
+      }
+      v_error_summary: {
+        Row: {
+          affected_users: number | null
+          endpoint: string | null
+          error_code: string | null
+          error_count: number | null
+          minute: string | null
+          sample_messages: string[] | null
+        }
+        Relationships: []
+      }
+      v_perf_summary: {
+        Row: {
+          avg_chunks: number | null
+          avg_latency: number | null
+          avg_similarity: number | null
+          endpoint: string | null
+          minute: string | null
+          p50_latency: number | null
+          p95_latency: number | null
+          p99_latency: number | null
+          requests: number | null
+        }
+        Relationships: []
+      }
+      v_rate_limit_summary: {
+        Row: {
+          endpoint: string | null
+          max_ip_rpm: number | null
+          max_user_rpm: number | null
+          minute: string | null
+          total_requests: number | null
+          unique_ips: number | null
+          unique_users: number | null
+        }
+        Relationships: []
+      }
+      v_system_health: {
+        Row: {
+          avg_latency_5min: number | null
+          errors_5min: number | null
+          requests_1min: number | null
+          requests_5min: number | null
+          status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       binary_quantize: {
