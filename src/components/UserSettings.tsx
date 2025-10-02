@@ -63,28 +63,42 @@ const UserSettings = () => {
 
     setLoading(true);
 
-    const { error } = await supabase
-      .from('user_settings')
-      .upsert({
-        user_id: user.id,
-        ...settings
+    try {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user.id,
+          ...settings
+        }, {
+          onConflict: 'user_id'
+        })
+        .select();
+
+      setLoading(false);
+
+      if (error) {
+        console.error('Settings save error:', error);
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to save settings',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Settings saved successfully'
       });
-
-    setLoading(false);
-
-    if (error) {
+    } catch (err) {
+      setLoading(false);
+      console.error('Unexpected error saving settings:', err);
       toast({
         title: 'Error',
-        description: 'Failed to save settings',
+        description: 'An unexpected error occurred',
         variant: 'destructive'
       });
-      return;
     }
-
-    toast({
-      title: 'Success',
-      description: 'Settings saved successfully'
-    });
   };
 
   return (
