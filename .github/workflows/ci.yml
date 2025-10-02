@@ -35,29 +35,15 @@ jobs:
       - name: Wait for Supabase to be ready
         run: |
           echo "Waiting for Supabase to be ready..."
-          for i in {1..30}; do
-            if curl -s http://localhost:54321/rest/v1/ > /dev/null 2>&1; then
-              echo "✅ Supabase is ready!"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
+          sleep 60
 
-      - name: Wait for edge functions to be available
+      - name: Serve edge functions locally
         run: |
-          echo "Waiting for edge functions to be ready..."
-          for i in {1..30}; do
-            response=$(curl -s -X POST http://localhost:54321/functions/v1/query \
-              -H "Content-Type: application/json" \
-              -d '{}' || echo "error")
-            if [[ "$response" == *"error_code"* ]]; then
-              echo "✅ Edge functions are ready!"
-              break
-            fi
-            echo "Waiting for functions... ($i/30)"
-            sleep 2
-          done
+          echo "Starting edge functions..."
+          supabase functions serve query --no-verify-jwt &
+          supabase functions serve process-document --no-verify-jwt &
+          sleep 10
+          echo "✅ Edge functions serving!"
 
       - name: Run query unit tests
         run: deno test --allow-net --allow-env supabase/functions/query/test_unit.ts
