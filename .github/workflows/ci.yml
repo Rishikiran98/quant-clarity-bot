@@ -34,15 +34,22 @@ jobs:
 
       - name: Wait for Supabase to be ready
         run: |
-          echo "Waiting for Supabase functions to be ready..."
+          echo "Waiting for Supabase to be ready..."
           for i in {1..30}; do
-            if curl -s http://localhost:54321/functions/v1/query -X OPTIONS > /dev/null 2>&1; then
+            if curl -s http://localhost:54321/rest/v1/ > /dev/null 2>&1; then
               echo "✅ Supabase is ready!"
               break
             fi
             echo "Waiting... ($i/30)"
             sleep 2
           done
+
+      - name: Deploy edge functions to local instance
+        run: |
+          echo "Deploying edge functions..."
+          supabase functions deploy query --no-verify-jwt
+          supabase functions deploy process-document --no-verify-jwt
+          echo "✅ Functions deployed!"
 
       - name: Run query unit tests
         run: deno test --allow-net --allow-env supabase/functions/query/test_unit.ts
