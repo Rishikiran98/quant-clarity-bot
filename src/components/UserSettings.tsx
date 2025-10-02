@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ interface UserSettingsData {
 
 const UserSettings = () => {
   const { user } = useAuth();
+  const { theme: currentTheme, setTheme } = useTheme();
   const { toast } = useToast();
   const [settings, setSettings] = useState<UserSettingsData>({
     theme: 'dark',
@@ -113,7 +115,10 @@ const UserSettings = () => {
           <Label htmlFor="theme">Theme</Label>
           <Select
             value={settings.theme}
-            onValueChange={(value) => setSettings({ ...settings, theme: value })}
+            onValueChange={(value) => {
+              setSettings({ ...settings, theme: value });
+              setTheme(value as 'dark' | 'light' | 'system');
+            }}
           >
             <SelectTrigger id="theme">
               <SelectValue />
@@ -128,20 +133,9 @@ const UserSettings = () => {
 
         <div className="space-y-2">
           <Label htmlFor="language">Language</Label>
-          <Select
-            value={settings.language}
-            onValueChange={(value) => setSettings({ ...settings, language: value })}
-          >
-            <SelectTrigger id="language">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-card/95 backdrop-blur-sm z-50">
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="es">Español</SelectItem>
-              <SelectItem value="fr">Français</SelectItem>
-              <SelectItem value="de">Deutsch</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md border border-border/50">
+            Language switching is not yet implemented. Currently only English is supported.
+          </div>
         </div>
 
         <div className="space-y-2">
