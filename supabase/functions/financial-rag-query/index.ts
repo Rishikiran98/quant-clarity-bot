@@ -24,52 +24,30 @@ const ERROR_CODES = {
 
 const RATE_LIMIT = 30; // 30 queries per minute per user
 
-// Mock financial document database (TODO: Remove after implementing real vector search)
-const FINANCIAL_DOCS = [
-  {
-    id: "tsla-10k-2024-p23",
-    content: "Risk Factor: Supply Chain Disruptions - We are subject to risks associated with supply chain disruptions, particularly in sourcing battery cells, semiconductors, and other critical components.",
-    source: "Tesla 10-K 2024, Page 23",
-    metadata: { ticker: "TSLA", fiscal_year: 2024, category: "Risk Factors", doc_type: "10-K" }
-  },
-  {
-    id: "msft-10q-2023-q4-p45",
-    content: "Cloud Computing Growth - Our Azure cloud platform continues to experience strong growth, driven by increased demand for digital transformation solutions.",
-    source: "Microsoft 10-Q 2023 Q4, Page 45",
-    metadata: { ticker: "MSFT", fiscal_year: 2023, quarter: 4, category: "Business Highlights", doc_type: "10-Q" }
-  },
-  {
-    id: "aapl-8k-2024-01-p12",
-    content: "Acquisition of AI Startup - We completed the acquisition of a promising AI startup focused on natural language processing, enhancing our capabilities in machine learning.",
-    source: "Apple 8-K 2024-01, Page 12",
-    metadata: { ticker: "AAPL", fiscal_year: 2024, category: "Acquisitions", doc_type: "8-K" }
-  },
-  {
-    id: "goog-10k-2023-p78",
-    content: "Regulatory Scrutiny - We are facing increased regulatory scrutiny regarding our advertising practices and data privacy policies, which could impact our future growth.",
-    source: "Google 10-K 2023, Page 78",
-    metadata: { ticker: "GOOG", fiscal_year: 2023, category: "Legal & Regulatory", doc_type: "10-K" }
-  },
-  {
-    id: "amzn-10k-2022-p101",
-    content: "E-commerce Sales Growth - Our e-commerce sales continue to grow, driven by increased Prime memberships and expansion into new international markets.",
-    source: "Amazon 10-K 2022, Page 101",
-    metadata: { ticker: "AMZN", fiscal_year: 2022, category: "Sales & Marketing", doc_type: "10-K" }
+// Helper function to generate embeddings via OpenAI
+async function generateEmbedding(text: string): Promise<number[]> {
+  const openaiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiKey) throw new Error('OPENAI_API_KEY not configured');
+
+  const response = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      input: text,
+      model: 'text-embedding-3-small',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI embedding failed: ${response.status} - ${errorText}`);
   }
-];
 
-function calculateSimilarity(query: string, docContent: string): number {
-  const queryTerms = query.toLowerCase().split(/\s+/);
-  const docTerms = docContent.toLowerCase().split(/\s+/);
-  const matches = queryTerms.filter(term => docTerms.some(docTerm => docTerm.includes(term)));
-  return Math.min(0.98, Math.max(0.65, matches.length / queryTerms.length + (Math.random() - 0.5) * 0.1));
-}
-
-function retrieveDocuments(query: string, topK: number = 3) {
-  return FINANCIAL_DOCS
-    .map(doc => ({ ...doc, similarity: calculateSimilarity(query, doc.content) }))
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, topK);
+  const data = await response.json();
+  return data.data[0].embedding;
 }
 
 // ============================================================================
@@ -119,10 +97,45 @@ serve(async (req) => {
     const { query } = await req.json();
     if (!query?.trim()) return errorResponse(ERROR_CODES.VALIDATION_400);
 
-    // PRODUCTION TODO: Replace with real vector search
-    const retrievedChunks = retrieveDocuments(query, 3);
+    // Generate embedding for the query
+    console.log(`[${requestId}] Generating embedding for query`);
+    const queryEmbedding = await generateEmbedding(query);
     
-    const context = retrievedChunks.map((c, i) => `[Document ${i+1}]\nSource: ${c.source}\nContent: ${c.content}`).join('\n\n');
+    // Perform vector search using Supabase RPC
+    console.log(`[${requestId}] Searching documents with vector similarity`);
+    const { data: chunks, error: searchError } = await supabase.rpc('search_documents', {
+      query_embedding: queryEmbedding,
+      match_count: 5,
+      p_user_id: userId
+    });
+
+    if (searchError) {
+      console.error(`[${requestId}] Vector search error:`, searchError);
+      return errorResponse(ERROR_CODES.VECTOR_500, searchError.message);
+    }
+
+    if (!chunks || chunks.length === 0) {
+      console.warn(`[${requestId}] No documents found for user ${userId}`);
+      return new Response(
+        JSON.stringify({
+          answer: "I couldn't find any relevant documents in the knowledge base. Please ensure documents have been uploaded and processed.",
+          retrievedChunks: [],
+          metadata: { query, chunksRetrieved: 0, request_id: requestId }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const retrievedChunks = chunks.map((c: any) => ({
+      content: c.text,
+      source: c.doc_title || 'Unknown',
+      similarity: c.similarity,
+      metadata: c.chunk_metadata || {}
+    }));
+    
+    const context = retrievedChunks.map((c: any, i: number) => 
+      `[Document ${i+1}]\nSource: ${c.source}\nSimilarity: ${(c.similarity * 100).toFixed(1)}%\nContent: ${c.content}`
+    ).join('\n\n');
     
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -143,7 +156,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         answer,
-        retrievedChunks: retrievedChunks.map(c => ({ content: c.content.substring(0, 500), source: c.source, similarity: c.similarity })),
+        retrievedChunks: retrievedChunks.map((c: any) => ({ content: c.content.substring(0, 500), source: c.source, similarity: c.similarity })),
         metadata: { query, chunksRetrieved: retrievedChunks.length, request_id: requestId }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

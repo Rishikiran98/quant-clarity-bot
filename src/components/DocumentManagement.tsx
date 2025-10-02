@@ -196,10 +196,44 @@ const DocumentManagement = () => {
         throw insertError;
       }
 
-      toast({
-        title: 'Success',
-        description: 'Document uploaded successfully'
-      });
+      // Get the inserted document ID
+      const { data: insertedDoc } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('title', newDoc.title)
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (insertedDoc) {
+        // Trigger background processing
+        toast({
+          title: 'Processing...',
+          description: 'Document uploaded. Processing embeddings in background.'
+        });
+
+        // Call process-document edge function (non-blocking)
+        supabase.functions
+          .invoke('process-document', {
+            body: { documentId: insertedDoc.id }
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Processing error:', error);
+              toast({
+                title: 'Processing Warning',
+                description: 'Document uploaded but processing failed. Try re-uploading.',
+                variant: 'destructive'
+              });
+            } else {
+              toast({
+                title: 'Success',
+                description: `Document processed: ${data?.chunksProcessed || 0} chunks created`
+              });
+            }
+          });
+      }
 
       setNewDoc({ title: '', content: '', source: '', file: null });
       setIsDialogOpen(false);
