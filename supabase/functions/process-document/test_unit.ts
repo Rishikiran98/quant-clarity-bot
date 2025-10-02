@@ -46,7 +46,7 @@ Deno.test("process-document: rejects oversized file", async () => {
     },
     body: formData,
   });
-  assertEquals(res.status, 502); // Infrastructure enforces size limits
+  assertEquals(res.status, 413); // Function explicitly validates Content-Length
   await res.text(); // Consume body to prevent leaks
 });
 

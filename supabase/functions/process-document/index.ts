@@ -59,6 +59,13 @@ serve(async (req) => {
       return errorResponse("AUTH_401", "Unauthorized", requestId, 401);
     }
 
+    // Check Content-Length before parsing form data
+    const contentLength = req.headers.get("content-length");
+    if (contentLength && Number(contentLength) > MAX_FILE_SIZE) {
+      await logError(supabase, "VALIDATION_413", `Request too large: ${contentLength} bytes`, req, user.id);
+      return errorResponse("VALIDATION_413", "File too large (max 25MB)", requestId, 413);
+    }
+
     // Parse form data
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
