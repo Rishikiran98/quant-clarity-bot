@@ -17,22 +17,107 @@ const authSchema = z.object({
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [view, setView] = useState<'signup' | 'login'>('signup');
-  const { signIn, signUp, signOut, user } = useAuth();
+  const [view, setView] = useState<'signup' | 'login' | 'reset' | 'update'>('signup');
+  const { signIn, signUp, signOut, resetPassword, updatePassword, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
+    // Check for password recovery token in URL
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    if (hashParams.get('type') === 'recovery') {
+      setView('update');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user && view !== 'update') {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, navigate, view]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate inputs
+    if (view === 'update') {
+      // Validate new password
+      const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters' });
+      const passwordResult = passwordSchema.safeParse(newPassword);
+      
+      if (!passwordResult.success) {
+        toast({
+          title: 'Validation Error',
+          description: passwordResult.error.errors[0].message,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const { error } = await updatePassword(newPassword);
+        if (error) throw error;
+        
+        toast({
+          title: 'Password Updated',
+          description: 'Your password has been successfully updated'
+        });
+        
+        navigate('/');
+      } catch (error: any) {
+        toast({
+          title: 'Password Update Failed',
+          description: error.message || 'An error occurred',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    if (view === 'reset') {
+      // Validate email only for password reset
+      const emailSchema = z.string().trim().email({ message: 'Invalid email address' }).max(255);
+      const emailResult = emailSchema.safeParse(email);
+      
+      if (!emailResult.success) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please enter a valid email address',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const { error } = await resetPassword(email);
+        if (error) throw error;
+        
+        toast({
+          title: 'Password Reset Email Sent',
+          description: 'Check your email for the password reset link'
+        });
+        
+        setView('login');
+      } catch (error: any) {
+        toast({
+          title: 'Password Reset Failed',
+          description: error.message || 'An error occurred',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    // Validate inputs for signup/login
     const result = authSchema.safeParse({ email, password });
     if (!result.success) {
       toast({
@@ -89,38 +174,66 @@ const Auth = () => {
             Financial RAG System
           </h1>
           <p className="text-muted-foreground">
-            {view === 'signup' ? 'Create a new account' : 'Sign in to your account'}
+            {view === 'signup' 
+              ? 'Create a new account' 
+              : view === 'reset' 
+                ? 'Reset your password' 
+                : view === 'update'
+                  ? 'Set your new password'
+                  : 'Sign in to your account'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+          {view !== 'update' && (
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+          )}
+          {view === 'update' ? (
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+            </div>
+          ) : view !== 'reset' && (
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+          )}
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {view === 'signup' ? 'Creating Account...' : 'Signing In...'}
+                {view === 'signup' 
+                  ? 'Creating Account...' 
+                  : view === 'reset'
+                    ? 'Sending Reset Link...'
+                    : view === 'update'
+                      ? 'Updating Password...'
+                      : 'Signing In...'}
               </>
             ) : (
               <>
@@ -128,6 +241,14 @@ const Auth = () => {
                   <>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Create Account
+                  </>
+                ) : view === 'reset' ? (
+                  <>
+                    Send Reset Link
+                  </>
+                ) : view === 'update' ? (
+                  <>
+                    Update Password
                   </>
                 ) : (
                   <>
@@ -140,20 +261,40 @@ const Auth = () => {
           </Button>
         </form>
 
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setView(view === 'signup' ? 'login' : 'signup');
-              setPassword('');
-            }}
-            className="text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            {view === 'signup' 
-              ? 'Already have an account? Sign in' 
-              : "Don't have an account? Sign up"}
-          </button>
-        </div>
+        {view !== 'update' && (
+          <div className="mt-6 text-center space-y-2">
+            {view === 'login' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setView('reset');
+                  setPassword('');
+                }}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors block w-full"
+              >
+                Forgot password?
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (view === 'reset') {
+                  setView('login');
+                } else {
+                  setView(view === 'signup' ? 'login' : 'signup');
+                }
+                setPassword('');
+              }}
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              {view === 'signup' 
+                ? 'Already have an account? Sign in' 
+                : view === 'reset'
+                  ? 'Back to sign in'
+                  : "Don't have an account? Sign up"}
+            </button>
+          </div>
+        )}
       </Card>
     </div>
   );
