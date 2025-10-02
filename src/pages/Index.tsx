@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import DashboardHeader from "@/components/DashboardHeader";
 import KPICards from "@/components/KPICards";
 import ProfileSidebar from "@/components/ProfileSidebar";
+import DocumentManagement from "@/components/DocumentManagement";
 import QueryInterface from "@/components/QueryInterface";
 import MetricsDashboard from "@/components/MetricsDashboard";
 import ArchitectureDiagram from "@/components/ArchitectureDiagram";
 import SimilarityHeatmap from "@/components/SimilarityHeatmap";
 import DriftMonitoring from "@/components/DriftMonitoring";
 import QueryHistory from "@/components/QueryHistory";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const [selectedQuery, setSelectedQuery] = useState<string>("");
@@ -54,15 +56,28 @@ const Index = () => {
               <KPICards />
             </section>
 
-            {/* Query Interface */}
+            {/* Query Interface with Document Management */}
             <section>
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold">Query Engine</h2>
-                <p className="text-sm text-muted-foreground">
-                  Ask questions and get AI-powered insights from your documents
-                </p>
-              </div>
-              <QueryInterface />
+              <Tabs defaultValue="query" className="w-full">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="query">Query Engine</TabsTrigger>
+                  <TabsTrigger value="documents">Document Library</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="query">
+                  <div className="mb-4">
+                    <h2 className="text-2xl font-bold">Query Engine</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Ask questions and get AI-powered insights from your documents
+                    </p>
+                  </div>
+                  <QueryInterface />
+                </TabsContent>
+                
+                <TabsContent value="documents">
+                  <DocumentManagement />
+                </TabsContent>
+              </Tabs>
             </section>
 
             {/* Analytics Section */}

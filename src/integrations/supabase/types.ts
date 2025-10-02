@@ -18,8 +18,11 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          file_path: string | null
+          file_size: number | null
           id: string
           metadata: Json | null
+          mime_type: string | null
           source: string
           title: string
           updated_at: string
@@ -28,8 +31,11 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          file_path?: string | null
+          file_size?: number | null
           id?: string
           metadata?: Json | null
+          mime_type?: string | null
           source: string
           title: string
           updated_at?: string
@@ -38,8 +44,11 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          file_path?: string | null
+          file_size?: number | null
           id?: string
           metadata?: Json | null
+          mime_type?: string | null
           source?: string
           title?: string
           updated_at?: string
