@@ -12,10 +12,15 @@ const ProfileSidebar = () => {
     return user.email.substring(0, 2).toUpperCase();
   };
 
-  const memberSince = new Date(user?.created_at || Date.now()).toLocaleDateString('en-US', {
-    month: 'short',
-    year: 'numeric'
-  });
+  const memberSince = user?.user_metadata?.created_at 
+    ? new Date(user.user_metadata.created_at).toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric'
+      })
+    : new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric'
+      });
 
   const stats = [
     { label: 'Queries Made', value: '247', icon: Activity },
