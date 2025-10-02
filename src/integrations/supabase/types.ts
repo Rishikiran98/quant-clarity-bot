@@ -469,6 +469,27 @@ export type Database = {
         }
         Relationships: []
       }
+      v_user_api_usage: {
+        Row: {
+          endpoint: string | null
+          id: number | null
+          ts: string | null
+          user_id: string | null
+        }
+        Insert: {
+          endpoint?: string | null
+          id?: number | null
+          ts?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          endpoint?: string | null
+          id?: number | null
+          ts?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       binary_quantize: {
