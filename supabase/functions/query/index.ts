@@ -33,12 +33,28 @@ const anonymizeIp = (ip: string): string => {
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", ...CORS },
+    headers: { 
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
+    },
   });
 }
 
 function errorResponse(code: string, message: string, requestId: string, status = 400) {
-  return json({ error_code: code, message, requestId }, status);
+  return new Response(
+    JSON.stringify({ error_code: code, message, requestId }),
+    {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
+      },
+    }
+  );
 }
 
 serve(async (req) => {
@@ -271,7 +287,7 @@ Answer with citations:`;
 
     return errorResponse(
       "UNCAUGHT_500",
-      "Unexpected server error",
+      error instanceof Error ? error.message : "Unexpected server error",
       requestId,
       500
     );
