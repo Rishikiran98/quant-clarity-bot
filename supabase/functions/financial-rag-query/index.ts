@@ -24,6 +24,36 @@ const ERROR_CODES = {
 
 const RATE_LIMIT = 30; // 30 queries per minute per user
 
+// Helper: Log errors to database
+async function logError(supabase: any, requestId: string, userId: string, errorType: string, errorMessage: string, metadata: any = {}) {
+  try {
+    await supabase.from('error_logs').insert({
+      request_id: requestId,
+      user_id: userId,
+      error_type: errorType,
+      error_message: errorMessage,
+      metadata: { ...metadata, function: 'financial-rag-query' }
+    });
+  } catch (err) {
+    console.error('Failed to log error to DB:', err);
+  }
+}
+
+// Helper: Log performance metrics
+async function logPerformance(supabase: any, requestId: string, userId: string, metricName: string, value: number, metadata: any = {}) {
+  try {
+    await supabase.from('performance_metrics').insert({
+      request_id: requestId,
+      user_id: userId,
+      metric_name: metricName,
+      metric_value: value,
+      metadata: { ...metadata, function: 'financial-rag-query' }
+    });
+  } catch (err) {
+    console.error('Failed to log performance to DB:', err);
+  }
+}
+
 // Helper function to generate embeddings via OpenAI
 async function generateEmbedding(text: string): Promise<number[]> {
   const openaiKey = Deno.env.get('OPENAI_API_KEY');
@@ -149,21 +179,42 @@ serve(async (req) => {
       }),
     });
 
-    if (!aiResponse.ok) return errorResponse(ERROR_CODES.LLM_500);
+    if (!aiResponse.ok) {
+      await logError(supabase, requestId, userId!, 'ai_error', `AI gateway returned ${aiResponse.status}`, {
+        status: aiResponse.status
+      });
+      return errorResponse(ERROR_CODES.LLM_500);
+    }
     
     const answer = (await aiResponse.json()).choices[0].message.content;
+    
+    // Log performance metrics
+    const queryDuration = Date.now() - startTime;
+    await logPerformance(supabase, requestId, userId!, 'query_latency', queryDuration, {
+      chunks_retrieved: retrievedChunks.length,
+      query_length: query.length
+    });
 
     return new Response(
       JSON.stringify({
         answer,
         retrievedChunks: retrievedChunks.map((c: any) => ({ content: c.content.substring(0, 500), source: c.source, similarity: c.similarity })),
-        metadata: { query, chunksRetrieved: retrievedChunks.length, request_id: requestId }
+        metadata: { query, chunksRetrieved: retrievedChunks.length, request_id: requestId, latencyMs: queryDuration }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error(`[${requestId}] Error:`, error);
-    return errorResponse(ERROR_CODES.SERVER_500, error instanceof Error ? error.message : 'Unknown error');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Log error to database if we have userId
+    if (userId && supabase) {
+      await logError(supabase, requestId, userId, 'server_error', errorMessage, {
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
+    
+    return errorResponse(ERROR_CODES.SERVER_500, errorMessage);
   }
 });

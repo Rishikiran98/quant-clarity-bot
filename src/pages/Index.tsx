@@ -9,7 +9,10 @@ import ArchitectureDiagram from "@/components/ArchitectureDiagram";
 import SimilarityHeatmap from "@/components/SimilarityHeatmap";
 import DriftMonitoring from "@/components/DriftMonitoring";
 import QueryHistory from "@/components/QueryHistory";
+import FeedbackDialog from "@/components/FeedbackDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles } from "lucide-react";
 
 const Index = () => {
   const [selectedQuery, setSelectedQuery] = useState<string>("");
@@ -22,13 +25,20 @@ const Index = () => {
       <section className="border-b border-border bg-gradient-to-br from-background via-card/30 to-background">
         <div className="container mx-auto px-6 py-12">
           <div className="max-w-4xl">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-              Financial Intelligence Dashboard
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+                Financial Intelligence Dashboard
+              </h1>
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                BETA
+              </Badge>
+            </div>
+            <p className="text-lg text-muted-foreground max-w-2xl mb-4">
               AI-powered document retrieval and analysis system for financial data. 
               Get instant insights with grounded, auditable responses.
             </p>
+            <FeedbackDialog />
           </div>
         </div>
       </section>

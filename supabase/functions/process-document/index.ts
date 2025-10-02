@@ -61,16 +61,74 @@ async function generateEmbedding(text: string): Promise<number[]> {
   return data.data[0].embedding;
 }
 
-// Helper: Extract text from PDF
-async function extractTextFromPDF(file: File): Promise<string> {
-  // For now, return a placeholder. In production, use a PDF parsing library
-  // or external service like pdf.co or similar
-  console.warn('PDF text extraction not yet implemented - using filename as content');
-  return `PDF Document: ${file.name}\n\nContent extraction will be implemented in a future update.`;
+// Helper: Extract text from PDF using pdfjs-dist
+async function extractTextFromPDF(blob: Blob): Promise<string> {
+  try {
+    // Use Mozilla's PDF.js library via CDN
+    const pdfjs = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs');
+    
+    // Read blob as ArrayBuffer
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Load PDF document
+    const loadingTask = pdfjs.getDocument({ data: uint8Array });
+    const pdf = await loadingTask.promise;
+    
+    let fullText = '';
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      fullText += `\n\n--- Page ${pageNum} ---\n${pageText}`;
+    }
+    
+    console.log(`Extracted ${fullText.length} chars from ${pdf.numPages} pages`);
+    return fullText.trim();
+    
+  } catch (error) {
+    console.error('PDF extraction failed:', error);
+    throw new Error(`PDF parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+// Helper: Log errors to database
+async function logError(supabase: any, requestId: string, errorType: string, errorMessage: string, metadata: any = {}) {
+  try {
+    await supabase.from('error_logs').insert({
+      request_id: requestId,
+      error_type: errorType,
+      error_message: errorMessage,
+      metadata: { ...metadata, function: 'process-document' }
+    });
+  } catch (err) {
+    console.error('Failed to log error to DB:', err);
+  }
+}
+
+// Helper: Log performance metrics
+async function logPerformance(supabase: any, requestId: string, userId: string, metricName: string, value: number, metadata: any = {}) {
+  try {
+    await supabase.from('performance_metrics').insert({
+      request_id: requestId,
+      user_id: userId,
+      metric_name: metricName,
+      metric_value: value,
+      metadata: { ...metadata, function: 'process-document' }
+    });
+  } catch (err) {
+    console.error('Failed to log performance to DB:', err);
+  }
 }
 
 serve(async (req) => {
   const requestId = crypto.randomUUID();
+  const startTime = Date.now();
   console.log(`[${requestId}] Processing document upload`);
 
   if (req.method === 'OPTIONS') {
@@ -192,22 +250,45 @@ serve(async (req) => {
     }
 
     console.log(`[${requestId}] Successfully processed ${chunks.length} chunks`);
+    
+    // Log performance metrics
+    const serviceSupabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+    const duration = Date.now() - startTime;
+    await logPerformance(serviceSupabase, requestId, user.id, 'document_processing_time', duration, {
+      chunks_count: chunks.length,
+      text_length: text.length
+    });
 
     return new Response(
       JSON.stringify({
         success: true,
         chunksProcessed: chunks.length,
         documentId,
-        requestId
+        requestId,
+        processingTimeMs: duration
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[${requestId}] Error:`, error);
+    
+    // Log error to database
+    const errorSupabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+    await logError(errorSupabase, requestId, 'processing_error', errorMessage, {
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         requestId
       }),
       {
@@ -215,5 +296,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
+  } finally {
+    // Log total processing time
+    const duration = Date.now() - startTime;
+    console.log(`[${requestId}] Total processing time: ${duration}ms`);
   }
 });
