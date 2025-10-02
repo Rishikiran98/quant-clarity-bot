@@ -24,11 +24,39 @@ jobs:
         with:
           deno-version: v1.x
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase local instance
+        run: supabase start
+
+      - name: Wait for Supabase to be ready
+        run: |
+          echo "Waiting for Supabase functions to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:54321/functions/v1/query -X OPTIONS > /dev/null 2>&1; then
+              echo "✅ Supabase is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
       - name: Run query unit tests
         run: deno test --allow-net --allow-env supabase/functions/query/test_unit.ts
+        env:
+          FUNCTION_URL: http://localhost:54321/functions/v1
 
       - name: Run process-document unit tests
         run: deno test --allow-net --allow-env supabase/functions/process-document/test_unit.ts
+        env:
+          FUNCTION_URL: http://localhost:54321/functions/v1
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
 
   # Integration tests (full workflow)
   integration-tests:
