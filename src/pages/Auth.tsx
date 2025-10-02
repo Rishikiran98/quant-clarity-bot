@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogIn, UserPlus } from 'lucide-react';
 import { z } from 'zod';
@@ -19,17 +18,16 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSigningUp, setIsSigningUp] = useState(false);
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [view, setView] = useState<'signup' | 'login'>('signup');
   const { signIn, signUp, signOut, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user && !isSigningUp) {
+    if (user) {
       navigate('/');
     }
-  }, [user, isSigningUp, navigate]);
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,18 +46,16 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      if (mode === 'signup') {
-        setIsSigningUp(true);
+      if (view === 'signup') {
         const { error } = await signUp(email, password);
         if (error) throw error;
         
         // Sign out immediately to prevent auto-login
         await signOut();
         
-        // Switch to login tab and clear password
-        setMode('login');
+        // Switch to login view and clear password
+        setView('login');
         setPassword('');
-        setIsSigningUp(false);
         
         toast({
           title: 'Account Created',
@@ -73,11 +69,10 @@ const Auth = () => {
           title: 'Welcome Back',
           description: 'Successfully signed in'
         });
-        navigate('/');
       }
     } catch (error: any) {
       toast({
-        title: mode === 'signup' ? 'Signup Failed' : 'Login Failed',
+        title: view === 'signup' ? 'Signup Failed' : 'Login Failed',
         description: error.message || 'An error occurred',
         variant: 'destructive'
       });
@@ -94,45 +89,45 @@ const Auth = () => {
             Financial RAG System
           </h1>
           <p className="text-muted-foreground">
-            {mode === 'login' ? 'Sign in to your account' : 'Create a new account'}
+            {view === 'signup' ? 'Create a new account' : 'Sign in to your account'}
           </p>
         </div>
 
-        <Tabs value={mode} onValueChange={(v) => setMode(v as 'login' | 'signup')} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
-
-          <form onSubmit={handleSubmit}>
-            <TabsContent value="login" className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Password</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {view === 'signup' ? 'Creating Account...' : 'Signing In...'}
+              </>
+            ) : (
+              <>
+                {view === 'signup' ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing In...
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Create Account
                   </>
                 ) : (
                   <>
@@ -140,48 +135,25 @@ const Auth = () => {
                     Sign In
                   </>
                 )}
-              </Button>
-            </TabsContent>
+              </>
+            )}
+          </Button>
+        </form>
 
-            <TabsContent value="signup" className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="signup-email">Email</Label>
-                <Input
-                  id="signup-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-password">Password</Label>
-                <Input
-                  id="signup-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Account...
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Create Account
-                  </>
-                )}
-              </Button>
-            </TabsContent>
-          </form>
-        </Tabs>
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setView(view === 'signup' ? 'login' : 'signup');
+              setPassword('');
+            }}
+            className="text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
+            {view === 'signup' 
+              ? 'Already have an account? Sign in' 
+              : "Don't have an account? Sign up"}
+          </button>
+        </div>
       </Card>
     </div>
   );
