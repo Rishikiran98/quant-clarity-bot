@@ -15,6 +15,21 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
+// Helper: Anonymize IP addresses (GDPR compliance)
+const anonymizeIp = (ip: string): string => {
+  if (!ip || ip === 'unknown') return 'unknown';
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0`; // Mask last octet
+  }
+  // For IPv6, mask last 80 bits
+  const ipv6Parts = ip.split(':');
+  if (ipv6Parts.length >= 4) {
+    return ipv6Parts.slice(0, 4).join(':') + '::0';
+  }
+  return 'unknown';
+};
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 serve(async (req) => {

@@ -14,6 +14,21 @@ const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const RATE_LIMIT = 30;
 
+// Helper: Anonymize IP addresses (GDPR compliance)
+const anonymizeIp = (ip: string): string => {
+  if (!ip || ip === 'unknown' || ip === '0.0.0.0') return 'unknown';
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0`; // Mask last octet
+  }
+  // For IPv6, mask last 80 bits
+  const ipv6Parts = ip.split(':');
+  if (ipv6Parts.length >= 4) {
+    return ipv6Parts.slice(0, 4).join(':') + '::0';
+  }
+  return 'unknown';
+};
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -79,11 +94,11 @@ serve(async (req) => {
       return errorResponse("VALIDATION_400", "Question required", requestId, 400);
     }
 
-    // Log API usage
+    // Log API usage with anonymized IP
     await supabase.from("api_usage").insert({
       user_id: user.id,
       endpoint: "query",
-      ip_address: ip,
+      ip_address: anonymizeIp(ip),
     });
 
     // Generate embedding

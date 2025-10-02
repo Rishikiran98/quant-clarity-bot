@@ -12,6 +12,21 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Helper: Anonymize IP addresses (GDPR compliance)
+const anonymizeIp = (ip: string): string => {
+  if (!ip || ip === 'unknown') return 'unknown';
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0`; // Mask last octet
+  }
+  // For IPv6, mask last 80 bits
+  const ipv6Parts = ip.split(':');
+  if (ipv6Parts.length >= 4) {
+    return ipv6Parts.slice(0, 4).join(':') + '::0';
+  }
+  return 'unknown';
+};
+
 // Error taxonomy for consistent error handling
 const ERROR_CODES = {
   AUTH_401: { code: 'AUTH_401', message: 'Unauthorized - valid JWT required', status: 401 },
@@ -121,8 +136,12 @@ serve(async (req) => {
     const { data: isOverLimit } = await supabase.rpc('over_limit', { p_user: userId, p_limit: RATE_LIMIT });
     if (isOverLimit) return errorResponse(ERROR_CODES.RATE_429);
 
-    // Log usage
-    await supabase.from('api_usage').insert({ user_id: userId, endpoint: 'financial-rag-query', ip_address: clientIp });
+    // Log usage with anonymized IP
+    await supabase.from('api_usage').insert({ 
+      user_id: userId, 
+      endpoint: 'financial-rag-query', 
+      ip_address: anonymizeIp(clientIp) 
+    });
 
     const { query } = await req.json();
     if (!query?.trim()) return errorResponse(ERROR_CODES.VALIDATION_400);
