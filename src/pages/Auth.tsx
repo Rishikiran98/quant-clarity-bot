@@ -19,16 +19,17 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const { signIn, signUp, signOut, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
+    if (user && !isSigningUp) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, isSigningUp, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +49,7 @@ const Auth = () => {
 
     try {
       if (mode === 'signup') {
+        setIsSigningUp(true);
         const { error } = await signUp(email, password);
         if (error) throw error;
         
@@ -57,6 +59,7 @@ const Auth = () => {
         // Switch to login tab and clear password
         setMode('login');
         setPassword('');
+        setIsSigningUp(false);
         
         toast({
           title: 'Account Created',
