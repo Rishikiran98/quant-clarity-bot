@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import DashboardHeader from '@/components/DashboardHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const getInitials = () => {
@@ -30,10 +32,10 @@ const Profile = () => {
       });
 
   const stats = [
-    { label: 'Total Queries', value: '247', icon: Activity, color: 'text-blue-500' },
-    { label: 'Documents Uploaded', value: '12', icon: FileText, color: 'text-green-500' },
-    { label: 'Documents Accessed', value: '89', icon: Database, color: 'text-purple-500' },
-    { label: 'Achievements', value: '5', icon: Award, color: 'text-yellow-500' },
+    { label: t('profile.totalQueries'), value: '247', icon: Activity, color: 'text-blue-500' },
+    { label: t('profile.documentsUploaded'), value: '12', icon: FileText, color: 'text-green-500' },
+    { label: t('profile.documentsAccessed'), value: '89', icon: Database, color: 'text-purple-500' },
+    { label: t('profile.achievements'), value: '5', icon: Award, color: 'text-yellow-500' },
   ];
 
   return (
@@ -47,16 +49,16 @@ const Profile = () => {
           className="mb-6"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
+          {t('common.backToDashboard')}
         </Button>
 
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Profile
+              {t('profile.title')}
             </h1>
             <p className="text-muted-foreground mt-2">
-              View and manage your profile information
+              {t('profile.subtitle')}
             </p>
           </div>
 
@@ -64,8 +66,8 @@ const Profile = () => {
             {/* Profile Card */}
             <Card>
               <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>Your account details and status</CardDescription>
+                <CardTitle>{t('profile.info')}</CardTitle>
+                <CardDescription>{t('profile.infoDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -77,9 +79,9 @@ const Profile = () => {
                   
                   <div className="flex-1 space-y-4 text-center md:text-left">
                     <div>
-                      <h3 className="text-2xl font-bold">User Profile</h3>
+                      <h3 className="text-2xl font-bold">{t('profile.info')}</h3>
                       <Badge variant="secondary" className="mt-2">
-                        Active Member
+                        {t('profile.activeMember')}
                       </Badge>
                     </div>
                     
@@ -92,7 +94,7 @@ const Profile = () => {
                       </div>
                       <div className="flex items-center justify-center md:justify-start gap-3">
                         <Calendar className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-sm">Joined {memberSince}</span>
+                        <span className="text-sm">{t('profile.joined')} {memberSince}</span>
                       </div>
                     </div>
                   </div>
@@ -103,8 +105,8 @@ const Profile = () => {
             {/* Activity Stats */}
             <Card>
               <CardHeader>
-                <CardTitle>Activity Statistics</CardTitle>
-                <CardDescription>Your usage metrics and achievements</CardDescription>
+                <CardTitle>{t('profile.activityStats')}</CardTitle>
+                <CardDescription>{t('profile.activityStatsDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -127,12 +129,12 @@ const Profile = () => {
             {/* Account Settings Quick Link */}
             <Card>
               <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-                <CardDescription>Manage your preferences and account settings</CardDescription>
+                <CardTitle>{t('profile.accountSettings')}</CardTitle>
+                <CardDescription>{t('profile.accountSettingsDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button onClick={() => navigate('/settings')} className="w-full md:w-auto">
-                  Go to Settings
+                  {t('profile.goToSettings')}
                 </Button>
               </CardContent>
             </Card>

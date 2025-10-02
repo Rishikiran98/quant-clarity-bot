@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import DashboardHeader from "@/components/DashboardHeader";
 import KPICards from "@/components/KPICards";
 import ProfileSidebar from "@/components/ProfileSidebar";
@@ -16,6 +17,7 @@ import { Sparkles } from "lucide-react";
 
 const Index = () => {
   const [selectedQuery, setSelectedQuery] = useState<string>("");
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-background">
@@ -27,7 +29,7 @@ const Index = () => {
           <div className="max-w-4xl">
             <div className="flex items-center gap-3 mb-4">
               <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                Financial Intelligence Dashboard
+                {t('dashboard.title')}
               </h1>
               <Badge variant="secondary" className="flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
@@ -35,8 +37,7 @@ const Index = () => {
               </Badge>
             </div>
             <p className="text-lg text-muted-foreground max-w-2xl mb-4">
-              AI-powered document retrieval and analysis system for financial data. 
-              Get instant insights with grounded, auditable responses.
+              {t('dashboard.subtitle')}
             </p>
             <FeedbackDialog />
           </div>
@@ -58,9 +59,9 @@ const Index = () => {
             {/* KPI Cards */}
             <section>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold">Overview</h2>
+                <h2 className="text-2xl font-bold">{t('dashboard.overview')}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Key performance indicators for your RAG system
+                  {t('dashboard.overviewDesc')}
                 </p>
               </div>
               <KPICards />
@@ -70,15 +71,15 @@ const Index = () => {
             <section>
               <Tabs defaultValue="query" className="w-full">
                 <TabsList className="mb-6">
-                  <TabsTrigger value="query">Query Engine</TabsTrigger>
-                  <TabsTrigger value="documents">Document Library</TabsTrigger>
+                  <TabsTrigger value="query">{t('dashboard.queryEngine')}</TabsTrigger>
+                  <TabsTrigger value="documents">{t('dashboard.documentLibrary')}</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="query">
                   <div className="mb-4">
-                    <h2 className="text-2xl font-bold">Query Engine</h2>
+                    <h2 className="text-2xl font-bold">{t('dashboard.queryEngine')}</h2>
                     <p className="text-sm text-muted-foreground">
-                      Ask questions and get AI-powered insights from your documents
+                      {t('dashboard.queryEngineDesc')}
                     </p>
                   </div>
                   <QueryInterface />
@@ -93,9 +94,9 @@ const Index = () => {
             {/* Analytics Section */}
             <section>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold">Advanced Analytics</h2>
+                <h2 className="text-2xl font-bold">{t('dashboard.advancedAnalytics')}</h2>
                 <p className="text-sm text-muted-foreground">
-                  Deep insights into retrieval quality and system performance
+                  {t('dashboard.advancedAnalyticsDesc')}
                 </p>
               </div>
               

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ interface UserSettingsData {
 const UserSettings = () => {
   const { user } = useAuth();
   const { theme: currentTheme, setTheme } = useTheme();
+  const { language: currentLanguage, setLanguage, t } = useLanguage();
   const { toast } = useToast();
   const [settings, setSettings] = useState<UserSettingsData>({
     theme: 'dark',
@@ -81,23 +83,23 @@ const UserSettings = () => {
       if (error) {
         console.error('Settings save error:', error);
         toast({
-          title: 'Error',
-          description: error.message || 'Failed to save settings',
+          title: t('common.error'),
+          description: error.message || t('settings.saveError'),
           variant: 'destructive'
         });
         return;
       }
 
       toast({
-        title: 'Success',
-        description: 'Settings saved successfully'
+        title: t('common.success'),
+        description: t('settings.saveSuccess')
       });
     } catch (err) {
       setLoading(false);
       console.error('Unexpected error saving settings:', err);
       toast({
-        title: 'Error',
-        description: 'An unexpected error occurred',
+        title: t('common.error'),
+        description: t('settings.saveError'),
         variant: 'destructive'
       });
     }
@@ -107,12 +109,12 @@ const UserSettings = () => {
     <Card className="border-border/50 bg-card/50 backdrop-blur-sm p-6">
       <div className="flex items-center gap-2 mb-6">
         <Settings className="h-5 w-5 text-primary" />
-        <h3 className="font-semibold">Preferences</h3>
+        <h3 className="font-semibold">{t('settings.preferences')}</h3>
       </div>
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="theme">Theme</Label>
+          <Label htmlFor="theme">{t('settings.theme')}</Label>
           <Select
             value={settings.theme}
             onValueChange={(value) => {
@@ -132,14 +134,28 @@ const UserSettings = () => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="language">Language</Label>
-          <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md border border-border/50">
-            Language switching is not yet implemented. Currently only English is supported.
-          </div>
+          <Label htmlFor="language">{t('settings.language')}</Label>
+          <Select
+            value={settings.language}
+            onValueChange={(value) => {
+              setSettings({ ...settings, language: value });
+              setLanguage(value as 'en' | 'es' | 'fr' | 'de');
+            }}
+          >
+            <SelectTrigger id="language">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-card/95 backdrop-blur-sm z-50">
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="es">Español</SelectItem>
+              <SelectItem value="fr">Français</SelectItem>
+              <SelectItem value="de">Deutsch</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="model">Default AI Model</Label>
+          <Label htmlFor="model">{t('settings.defaultModel')}</Label>
           <Select
             value={settings.default_model}
             onValueChange={(value) => setSettings({ ...settings, default_model: value })}
@@ -157,7 +173,7 @@ const UserSettings = () => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="results">Results Per Page</Label>
+          <Label htmlFor="results">{t('settings.resultsPerPage')}</Label>
           <Select
             value={settings.results_per_page.toString()}
             onValueChange={(value) => setSettings({ ...settings, results_per_page: parseInt(value) })}
@@ -176,9 +192,9 @@ const UserSettings = () => {
 
         <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-background/50">
           <div className="space-y-0.5">
-            <Label htmlFor="notifications">Notifications</Label>
+            <Label htmlFor="notifications">{t('settings.notifications')}</Label>
             <p className="text-xs text-muted-foreground">
-              Receive updates about query results
+              {t('settings.notificationsDesc')}
             </p>
           </div>
           <Switch
@@ -196,7 +212,7 @@ const UserSettings = () => {
           className="w-full"
         >
           <Save className="h-4 w-4 mr-2" />
-          {loading ? 'Saving...' : 'Save Settings'}
+          {loading ? t('settings.saving') : t('settings.save')}
         </Button>
       </div>
     </Card>

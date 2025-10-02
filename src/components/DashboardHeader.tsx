@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const DashboardHeader = () => {
   const { user, signOut } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -40,9 +42,9 @@ const DashboardHeader = () => {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent" />
             <div>
               <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Financial RAG
+                {t('app.title')}
               </h1>
-              <p className="text-xs text-muted-foreground">AI-Powered Analytics</p>
+              <p className="text-xs text-muted-foreground">{t('app.subtitle')}</p>
             </div>
           </div>
 
@@ -59,7 +61,7 @@ const DashboardHeader = () => {
             <DropdownMenuContent className="w-56 bg-card/95 backdrop-blur-sm z-50" align="end">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">My Account</p>
+                  <p className="text-sm font-medium">{t('header.myAccount')}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     {user?.email}
                   </p>
@@ -71,14 +73,14 @@ const DashboardHeader = () => {
                 onClick={() => navigate('/profile')}
               >
                 <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+                <span>{t('header.profile')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="cursor-pointer"
                 onClick={() => navigate('/settings')}
               >
                 <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
+                <span>{t('header.settings')}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
@@ -86,7 +88,7 @@ const DashboardHeader = () => {
                 onClick={handleSignOut}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign Out</span>
+                <span>{t('header.signOut')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
