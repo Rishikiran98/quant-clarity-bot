@@ -492,6 +492,64 @@ export type Database = {
       }
     }
     Functions: {
+      get_cost_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          day: string
+          embedding_cost_usd: number
+          llm_cost_usd: number
+          total_chunks_retrieved: number
+          total_cost_usd: number
+          total_queries: number
+        }[]
+      }
+      get_error_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          affected_users: number
+          endpoint: string
+          error_code: string
+          error_count: number
+          minute: string
+          sample_messages: string[]
+        }[]
+      }
+      get_perf_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avg_chunks: number
+          avg_latency: number
+          avg_similarity: number
+          endpoint: string
+          minute: string
+          p50_latency: number
+          p95_latency: number
+          p99_latency: number
+          requests: number
+        }[]
+      }
+      get_rate_limit_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          endpoint: string
+          max_ip_rpm: number
+          max_user_rpm: number
+          minute: string
+          total_requests: number
+          unique_ips: number
+          unique_users: number
+        }[]
+      }
+      get_system_health: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avg_latency_5min: number
+          errors_5min: number
+          requests_1min: number
+          requests_5min: number
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
