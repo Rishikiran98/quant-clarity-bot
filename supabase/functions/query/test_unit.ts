@@ -9,9 +9,10 @@ Deno.test("query: rejects unauthenticated request", async () => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question: "test query" }),
   });
-  assertEquals(res.status, 401);
   const data = await res.json();
-  assertEquals(data.code, "AUTH_401");
+  assertEquals(res.status, 401);
+  assertEquals(data.error_code, "AUTH_401");
+  assertExists(data.requestId);
 });
 
 Deno.test("query: rejects malformed authorization", async () => {
@@ -23,7 +24,9 @@ Deno.test("query: rejects malformed authorization", async () => {
     },
     body: JSON.stringify({ question: "test" }),
   });
+  const data = await res.json();
   assertEquals(res.status, 401);
+  assertEquals(data.error_code, "AUTH_401");
 });
 
 Deno.test("query: validates required question field", async () => {
@@ -40,16 +43,18 @@ Deno.test("query: validates required question field", async () => {
     },
     body: JSON.stringify({ question: "" }),
   });
-  assertEquals(res.status, 400);
   const data = await res.json();
-  assertEquals(data.code, "VALIDATION_400");
+  assertEquals(res.status, 400);
+  assertEquals(data.error_code, "VALIDATION_400");
+  assertExists(data.requestId);
 });
 
 Deno.test("query: handles CORS preflight", async () => {
   const res = await fetch(`${BASE_URL}/query`, {
     method: "OPTIONS",
   });
-  assertEquals(res.status, 200);
+  await res.text(); // Consume body to avoid leak
+  assertEquals(res.status, 204);
   assertEquals(res.headers.get("Access-Control-Allow-Origin"), "*");
   assertExists(res.headers.get("Access-Control-Allow-Methods"));
 });

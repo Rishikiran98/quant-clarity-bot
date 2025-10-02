@@ -37,7 +37,7 @@ function json(data: unknown, status = 200) {
 }
 
 function errorResponse(code: string, message: string, requestId: string, status = 400) {
-  return json({ code, message, requestId }, status);
+  return json({ error_code: code, message, requestId }, status);
 }
 
 serve(async (req) => {
@@ -45,7 +45,7 @@ serve(async (req) => {
   const requestId = crypto.randomUUID();
   
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS });
+    return new Response(null, { status: 204, headers: CORS });
   }
 
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim() || "0.0.0.0";
