@@ -101,6 +101,36 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_queries: {
+        Row: {
+          created_at: string
+          id: string
+          query: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          query: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          query?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -118,6 +148,42 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          default_model: string | null
+          id: string
+          language: string | null
+          notifications_enabled: boolean | null
+          results_per_page: number | null
+          theme: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_model?: string | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          results_per_page?: number | null
+          theme?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_model?: string | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          results_per_page?: number | null
+          theme?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

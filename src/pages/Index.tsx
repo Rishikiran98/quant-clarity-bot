@@ -2,12 +2,15 @@ import React, { useState } from "react";
 import DashboardHeader from "@/components/DashboardHeader";
 import KPICards from "@/components/KPICards";
 import ProfileSidebar from "@/components/ProfileSidebar";
+import SavedQueries from "@/components/SavedQueries";
+import UserSettings from "@/components/UserSettings";
 import QueryInterface from "@/components/QueryInterface";
 import MetricsDashboard from "@/components/MetricsDashboard";
 import ArchitectureDiagram from "@/components/ArchitectureDiagram";
 import SimilarityHeatmap from "@/components/SimilarityHeatmap";
 import DriftMonitoring from "@/components/DriftMonitoring";
 import QueryHistory from "@/components/QueryHistory";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const [selectedQuery, setSelectedQuery] = useState<string>("");
@@ -34,10 +37,11 @@ const Index = () => {
       {/* Main Dashboard Content */}
       <div className="container mx-auto px-6 py-8">
         <div className="grid lg:grid-cols-4 gap-6">
-          {/* Left Sidebar - Profile */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24">
+          {/* Left Sidebar - Profile & Settings */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="sticky top-24 space-y-6">
               <ProfileSidebar />
+              <UserSettings />
             </div>
           </div>
 
@@ -65,22 +69,36 @@ const Index = () => {
               <QueryInterface />
             </section>
 
-            {/* Analytics Grid */}
+            {/* Query Management Section */}
             <section>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold">Advanced Analytics</h2>
+                <h2 className="text-2xl font-bold">Query Management</h2>
                 <p className="text-sm text-muted-foreground">
-                  Deep insights into retrieval quality and system performance
+                  Access your saved queries and recent history
                 </p>
               </div>
               
               <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
+                  <Tabs defaultValue="history" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="history">History</TabsTrigger>
+                      <TabsTrigger value="saved">Saved</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="history">
+                      <QueryHistory onSelectQuery={setSelectedQuery} />
+                    </TabsContent>
+                    
+                    <TabsContent value="saved">
+                      <SavedQueries onSelectQuery={setSelectedQuery} />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+                
                 <div className="lg:col-span-2 space-y-6">
                   <SimilarityHeatmap />
                   <DriftMonitoring />
-                </div>
-                <div>
-                  <QueryHistory onSelectQuery={setSelectedQuery} />
                 </div>
               </div>
             </section>
