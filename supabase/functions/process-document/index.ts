@@ -1,304 +1,254 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
+// Production-ready document processing with PDF extraction, chunking, and embedding
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST,OPTIONS",
+  "Access-Control-Allow-Headers": "authorization,content-type,x-client-info,apikey",
 };
 
-// Text chunking configuration
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 200;
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
-// Helper: Split text into chunks
-function splitTextIntoChunks(text: string): string[] {
-  const chunks: string[] = [];
-  const sentences = text.split(/[.!?]+\s+/);
-  let currentChunk = '';
-  
-  for (const sentence of sentences) {
-    if ((currentChunk + sentence).length > CHUNK_SIZE && currentChunk.length > 0) {
-      chunks.push(currentChunk.trim());
-      // Add overlap
-      const words = currentChunk.split(/\s+/);
-      currentChunk = words.slice(-Math.floor(CHUNK_OVERLAP / 5)).join(' ') + ' ' + sentence;
-    } else {
-      currentChunk += (currentChunk ? ' ' : '') + sentence;
-    }
-  }
-  
-  if (currentChunk.trim()) {
-    chunks.push(currentChunk.trim());
-  }
-  
-  return chunks.filter(c => c.length > 50); // Filter out tiny chunks
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^\w.\-]/g, "_").slice(0, 128);
 }
 
-// Helper: Generate embedding via OpenAI
-async function generateEmbedding(text: string): Promise<number[]> {
-  const openaiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openaiKey) throw new Error('OPENAI_API_KEY not configured');
-
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openaiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      input: text.substring(0, 8000), // Limit to 8k chars for embedding
-      model: 'text-embedding-3-small',
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI embedding failed: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.data[0].embedding;
-}
-
-// Helper: Extract text from PDF using pdfjs-dist
-async function extractTextFromPDF(blob: Blob): Promise<string> {
+async function extractTextFromPDF(blob: Blob): Promise<{ page_no: number; text: string }[]> {
   try {
-    // Use Mozilla's PDF.js library via CDN
-    const pdfjs = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs');
+    const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs');
     
-    // Read blob as ArrayBuffer
     const arrayBuffer = await blob.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Load PDF document
-    const loadingTask = pdfjs.getDocument({ data: uint8Array });
+    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
     const pdf = await loadingTask.promise;
     
-    let fullText = '';
+    const pages: { page_no: number; text: string }[] = [];
     
-    // Extract text from each page
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
-      const pageText = textContent.items
+      const text = textContent.items
         .map((item: any) => item.str)
-        .join(' ');
-      
-      fullText += `\n\n--- Page ${pageNum} ---\n${pageText}`;
+        .join(" ");
+      pages.push({ page_no: i, text });
     }
     
-    console.log(`Extracted ${fullText.length} chars from ${pdf.numPages} pages`);
-    return fullText.trim();
-    
+    return pages;
   } catch (error) {
     console.error('PDF extraction failed:', error);
     throw new Error(`PDF parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
-// Helper: Log errors to database
-async function logError(supabase: any, requestId: string, errorType: string, errorMessage: string, metadata: any = {}) {
-  try {
-    await supabase.from('error_logs').insert({
-      request_id: requestId,
-      error_type: errorType,
-      error_message: errorMessage,
-      metadata: { ...metadata, function: 'process-document' }
-    });
-  } catch (err) {
-    console.error('Failed to log error to DB:', err);
-  }
+interface ChunkData {
+  page_no: number;
+  char_start: number;
+  char_end: number;
+  text: string;
+  embedding?: number[];
 }
 
-// Helper: Log performance metrics
-async function logPerformance(supabase: any, requestId: string, userId: string, metricName: string, value: number, metadata: any = {}) {
-  try {
-    await supabase.from('performance_metrics').insert({
-      request_id: requestId,
-      user_id: userId,
-      metric_name: metricName,
-      metric_value: value,
-      metadata: { ...metadata, function: 'process-document' }
-    });
-  } catch (err) {
-    console.error('Failed to log performance to DB:', err);
+function chunkPages(pages: { page_no: number; text: string }[]): ChunkData[] {
+  const chunks: ChunkData[] = [];
+  
+  for (const page of pages) {
+    const text = page.text || "";
+    let i = 0;
+    
+    while (i < text.length) {
+      const start = i;
+      const end = Math.min(i + CHUNK_SIZE, text.length);
+      const chunkText = text.slice(start, end);
+      
+      if (chunkText.trim().length > 50) {
+        chunks.push({
+          page_no: page.page_no,
+          char_start: start,
+          char_end: end,
+          text: chunkText,
+        });
+      }
+      
+      i += CHUNK_SIZE - CHUNK_OVERLAP;
+    }
   }
+  
+  return chunks;
+}
+
+async function generateEmbeddings(texts: string[]): Promise<number[][]> {
+  const embeddings: number[][] = [];
+  const batchSize = 100;
+  
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const batch = texts.slice(i, i + batchSize);
+    
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        input: batch,
+        model: "text-embedding-3-small",
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Embedding failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    embeddings.push(...data.data.map((d: any) => d.embedding));
+  }
+  
+  return embeddings;
 }
 
 serve(async (req) => {
-  const requestId = crypto.randomUUID();
-  const startTime = Date.now();
-  console.log(`[${requestId}] Processing document upload`);
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS });
   }
 
+  const requestId = crypto.randomUUID();
+
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // Authentication
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response("Unauthorized", { status: 401, headers: CORS });
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response("Unauthorized", { status: 401, headers: CORS });
     }
 
-    const { documentId } = await req.json();
-    if (!documentId) {
-      return new Response(JSON.stringify({ error: 'documentId required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // Parse form data
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+    const title = (formData.get("title") ?? "").toString() || "Untitled";
+    const source = (formData.get("source") ?? "upload").toString();
+
+    if (!file) {
+      return new Response("File missing", { status: 400, headers: CORS });
     }
 
-    console.log(`[${requestId}] Fetching document ${documentId}`);
+    if (file.size > MAX_FILE_SIZE) {
+      return new Response("File too large (max 25MB)", { status: 413, headers: CORS });
+    }
 
-    // Fetch the document
+    // Upload file to storage
+    const fileName = sanitizeFilename(file.name || `${crypto.randomUUID()}.pdf`);
+    const filePath = `${user.id}/${fileName}`;
+    const fileBytes = new Uint8Array(await file.arrayBuffer());
+
+    const { error: uploadError } = await supabase.storage
+      .from("financial-documents")
+      .upload(filePath, fileBytes, { upsert: true });
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return new Response("Upload failed", { status: 500, headers: CORS });
+    }
+
+    // Create document record
     const { data: doc, error: docError } = await supabase
-      .from('documents')
-      .select('*')
-      .eq('id', documentId)
-      .eq('owner_id', user.id)
+      .from("documents")
+      .insert({
+        owner_id: user.id,
+        title,
+        source,
+        file_path: filePath,
+        content: "", // Will be populated from chunks
+        mime_type: file.type,
+        file_size: file.size,
+      })
+      .select()
       .single();
 
-    if (docError || !doc) {
-      return new Response(JSON.stringify({ error: 'Document not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    if (docError) {
+      console.error("Doc create error:", docError);
+      return new Response("Document creation failed", { status: 500, headers: CORS });
     }
 
-    let text = doc.content || '';
+    // Extract text from PDF
+    const pages = await extractTextFromPDF(file);
+    console.log(`Extracted ${pages.length} pages from PDF`);
 
-    // If there's a file, download and extract text
-    if (doc.file_path && doc.mime_type === 'application/pdf') {
-      console.log(`[${requestId}] Downloading PDF from storage`);
-      const { data: fileData, error: downloadError } = await supabase.storage
-        .from('financial-documents')
-        .download(doc.file_path);
+    // Chunk the pages
+    const chunks = chunkPages(pages);
+    console.log(`Created ${chunks.length} chunks`);
 
-      if (!downloadError && fileData) {
-        text = await extractTextFromPDF(fileData as any);
-      }
-    }
+    // Generate embeddings
+    const embeddings = await generateEmbeddings(chunks.map(c => c.text));
+    console.log(`Generated ${embeddings.length} embeddings`);
 
-    if (!text || text.length < 50) {
-      return new Response(JSON.stringify({ error: 'No text content to process' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    console.log(`[${requestId}] Splitting text into chunks (${text.length} chars)`);
-    const chunks = splitTextIntoChunks(text);
-    console.log(`[${requestId}] Generated ${chunks.length} chunks`);
-
-    // Process chunks and generate embeddings
+    // Attach embeddings to chunks
     for (let i = 0; i < chunks.length; i++) {
-      const chunkText = chunks[i];
-      console.log(`[${requestId}] Processing chunk ${i + 1}/${chunks.length}`);
-
-      // Generate embedding
-      const embedding = await generateEmbedding(chunkText);
-
-      // Insert chunk
-      const { data: chunkData, error: chunkError } = await supabase
-        .from('document_chunks')
-        .insert({
-          document_id: documentId,
-          text: chunkText,
-          chunk_index: i,
-          metadata: { char_count: chunkText.length }
-        })
-        .select()
-        .single();
-
-      if (chunkError) {
-        console.error(`[${requestId}] Chunk insert error:`, chunkError);
-        throw chunkError;
-      }
-
-      // Insert embedding
-      const { error: embeddingError } = await supabase
-        .from('embeddings')
-        .insert({
-          document_id: documentId,
-          chunk_id: chunkData.id,
-          embedding: embedding,
-          metadata: { chunk_index: i }
-        });
-
-      if (embeddingError) {
-        console.error(`[${requestId}] Embedding insert error:`, embeddingError);
-        throw embeddingError;
-      }
+      chunks[i].embedding = embeddings[i];
     }
 
-    console.log(`[${requestId}] Successfully processed ${chunks.length} chunks`);
-    
-    // Log performance metrics
-    const serviceSupabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    const duration = Date.now() - startTime;
-    await logPerformance(serviceSupabase, requestId, user.id, 'document_processing_time', duration, {
-      chunks_count: chunks.length,
-      text_length: text.length
+    // Prepare payload for RPC
+    const rpcPayload = chunks.map(c => ({
+      page_no: c.page_no,
+      char_start: c.char_start,
+      char_end: c.char_end,
+      text: c.text,
+      embedding: c.embedding,
+      metadata: { length: c.text.length },
+    }));
+
+    // Ingest document with embeddings
+    const { error: ingestError } = await supabase.rpc("ingest_document_with_embeddings", {
+      p_document_id: doc.id,
+      p_chunks: rpcPayload,
+      p_user_id: user.id,
     });
+
+    if (ingestError) {
+      console.error("Ingest error:", ingestError);
+      return new Response(`Ingest failed: ${ingestError.message}`, {
+        status: 500,
+        headers: CORS,
+      });
+    }
 
     return new Response(
       JSON.stringify({
-        success: true,
-        chunksProcessed: chunks.length,
-        documentId,
+        ok: true,
         requestId,
-        processingTimeMs: duration
+        document_id: doc.id,
+        chunks: chunks.length,
+        pages: pages.length,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        headers: { "Content-Type": "application/json", ...CORS },
+      }
     );
-
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[${requestId}] Error:`, error);
-    
-    // Log error to database
-    const errorSupabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    await logError(errorSupabase, requestId, 'processing_error', errorMessage, {
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    
+    console.error("Process error:", error);
     return new Response(
       JSON.stringify({
-        error: errorMessage,
-        requestId
+        error: error instanceof Error ? error.message : String(error),
+        requestId,
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { "Content-Type": "application/json", ...CORS },
       }
     );
-  } finally {
-    // Log total processing time
-    const duration = Date.now() - startTime;
-    console.log(`[${requestId}] Total processing time: ${duration}ms`);
   }
 });

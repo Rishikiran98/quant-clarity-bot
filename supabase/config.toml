@@ -1,6 +1,6 @@
 project_id = "xfplgwsnvjfbfczdbcft"
 
-[functions.financial-rag-query]
+[functions.query]
 verify_jwt = true
 
 [functions.process-document]

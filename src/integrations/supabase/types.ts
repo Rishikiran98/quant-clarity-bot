@@ -18,18 +18,21 @@ export type Database = {
         Row: {
           endpoint: string
           id: number
+          ip_address: unknown | null
           ts: string
           user_id: string
         }
         Insert: {
           endpoint: string
           id?: number
+          ip_address?: unknown | null
           ts?: string
           user_id: string
         }
         Update: {
           endpoint?: string
           id?: number
+          ip_address?: unknown | null
           ts?: string
           user_id?: string
         }
@@ -37,27 +40,36 @@ export type Database = {
       }
       document_chunks: {
         Row: {
+          char_end: number | null
+          char_start: number | null
           chunk_index: number
           created_at: string
           document_id: string
           id: string
           metadata: Json | null
+          page_no: number | null
           text: string
         }
         Insert: {
+          char_end?: number | null
+          char_start?: number | null
           chunk_index: number
           created_at?: string
           document_id: string
           id?: string
           metadata?: Json | null
+          page_no?: number | null
           text: string
         }
         Update: {
+          char_end?: number | null
+          char_start?: number | null
           chunk_index?: number
           created_at?: string
           document_id?: string
           id?: string
           metadata?: Json | null
+          page_no?: number | null
           text?: string
         }
         Relationships: [
@@ -156,6 +168,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      error_logs: {
+        Row: {
+          endpoint: string | null
+          error_code: string
+          error_message: string | null
+          id: number
+          ip_address: unknown | null
+          request_id: string | null
+          ts: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          endpoint?: string | null
+          error_code: string
+          error_message?: string | null
+          id?: number
+          ip_address?: unknown | null
+          request_id?: string | null
+          ts?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          endpoint?: string | null
+          error_code?: string
+          error_message?: string | null
+          id?: number
+          ip_address?: unknown | null
+          request_id?: string | null
+          ts?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      performance_metrics: {
+        Row: {
+          avg_similarity: number | null
+          chunks_retrieved: number | null
+          db_latency_ms: number | null
+          endpoint: string
+          id: number
+          latency_ms: number
+          llm_latency_ms: number | null
+          ts: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avg_similarity?: number | null
+          chunks_retrieved?: number | null
+          db_latency_ms?: number | null
+          endpoint: string
+          id?: number
+          latency_ms: number
+          llm_latency_ms?: number | null
+          ts?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avg_similarity?: number | null
+          chunks_retrieved?: number | null
+          db_latency_ms?: number | null
+          endpoint?: string
+          id?: number
+          latency_ms?: number
+          llm_latency_ms?: number | null
+          ts?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -373,6 +457,10 @@ export type Database = {
         Args: { "": unknown }
         Returns: unknown
       }
+      ingest_document_with_embeddings: {
+        Args: { p_chunks: Json; p_document_id: string; p_user_id: string }
+        Returns: undefined
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -399,6 +487,10 @@ export type Database = {
       }
       over_limit: {
         Args: { p_limit: number; p_user: string }
+        Returns: boolean
+      }
+      over_limit_by_ip: {
+        Args: { p_ip: unknown; p_limit: number }
         Returns: boolean
       }
       search_documents: {
