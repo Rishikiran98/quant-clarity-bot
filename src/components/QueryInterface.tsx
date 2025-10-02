@@ -43,25 +43,26 @@ const QueryInterface = () => {
     setShowResults(false);
     
     try {
-      // Call the real edge function
-      const response = await fetch(
-        'https://xfplgwsnvjfbfczdbcft.supabase.co/functions/v1/financial-rag-query',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ query }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to process query');
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('You must be logged in to submit queries');
       }
 
-      const data = await response.json();
-      
+      // Call the edge function with authentication
+      const { data, error } = await supabase.functions.invoke('financial-rag-query', {
+        body: { query }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No data returned from query');
+      }
+
       setRetrievedChunks(data.retrievedChunks);
       setAnswer(data.answer);
       setShowResults(true);
