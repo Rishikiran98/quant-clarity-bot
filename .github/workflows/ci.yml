@@ -44,6 +44,21 @@ jobs:
             sleep 2
           done
 
+      - name: Wait for edge functions to be available
+        run: |
+          echo "Waiting for edge functions to be ready..."
+          for i in {1..30}; do
+            response=$(curl -s -X POST http://localhost:54321/functions/v1/query \
+              -H "Content-Type: application/json" \
+              -d '{}' || echo "error")
+            if [[ "$response" == *"error_code"* ]]; then
+              echo "✅ Edge functions are ready!"
+              break
+            fi
+            echo "Waiting for functions... ($i/30)"
+            sleep 2
+          done
+
       - name: Run query unit tests
         run: deno test --allow-net --allow-env supabase/functions/query/test_unit.ts
         env:
