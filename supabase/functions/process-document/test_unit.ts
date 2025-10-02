@@ -41,12 +41,9 @@ Deno.test("process-document: rejects oversized file", async () => {
   
   const res = await fetch(`${BASE_URL}/process-document`, {
     method: "POST",
-    headers: {
-      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmcGxnd3NudmpmYmZjemRiY2Z0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNzMxMDUsImV4cCI6MjA3NDg0OTEwNX0.tEdmp_7LjtFNb0i_OX35WyKM6RsB5IklOxU1G7vt3OM",
-    },
     body: formData,
   });
-  assertEquals(res.status, 413); // Function explicitly validates Content-Length
+  assertEquals(res.status, 413); // Size checked before auth
   await res.text(); // Consume body to prevent leaks
 });
 
