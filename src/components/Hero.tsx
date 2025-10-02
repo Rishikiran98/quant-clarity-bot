@@ -1,11 +1,25 @@
 import React from "react";
-import { Database, FileText, GitBranch, LineChart } from "lucide-react";
+import { Database, FileText, GitBranch, LineChart, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import AnimatedCounter from "./AnimatedCounter";
 
 const Hero = () => {
+  const { user, signOut } = useAuth();
+  
   return (
     <section className="relative overflow-hidden border-b border-border bg-gradient-to-br from-background via-card to-background">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+      
+      {user && (
+        <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+          <span className="text-sm text-muted-foreground">{user.email}</span>
+          <Button variant="outline" size="sm" onClick={signOut}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      )}
       
       <div className="container relative mx-auto px-6 py-16 lg:py-24">
         <div className="max-w-4xl mx-auto text-center">

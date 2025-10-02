@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { History, Clock, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface QueryRecord {
   id: string;
@@ -19,32 +21,54 @@ interface Props {
 
 const QueryHistory = ({ onSelectQuery }: Props) => {
   const [history, setHistory] = useState<QueryRecord[]>([]);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Load history from localStorage
-    const stored = localStorage.getItem('queryHistory');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      setHistory(parsed.map((item: any) => ({
-        ...item,
-        timestamp: new Date(item.timestamp)
-      })));
-    }
-  }, []);
+    if (!user) return;
 
-  const addQuery = (query: string, docsRetrieved: number, avgSim: number) => {
-    const newRecord: QueryRecord = {
-      id: Date.now().toString(),
-      query,
-      timestamp: new Date(),
-      documentsRetrieved: docsRetrieved,
-      avgSimilarity: avgSim
+    // Fetch from database
+    const fetchHistory = async () => {
+      const { data, error } = await supabase
+        .from('query_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (data && !error) {
+        setHistory(data.map((item) => ({
+          id: item.id,
+          query: item.query,
+          timestamp: new Date(item.created_at),
+          documentsRetrieved: item.documents_retrieved || 0,
+          avgSimilarity: Number(item.avg_similarity) || 0
+        })));
+      }
     };
-    
-    const updated = [newRecord, ...history].slice(0, 20); // Keep last 20
-    setHistory(updated);
-    localStorage.setItem('queryHistory', JSON.stringify(updated));
-  };
+
+    fetchHistory();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('query_history_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'query_history',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
+          fetchHistory();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const formatTime = (date: Date) => {
     const now = new Date();
@@ -57,11 +81,6 @@ const QueryHistory = ({ onSelectQuery }: Props) => {
     if (hours < 24) return `${hours}h ago`;
     return date.toLocaleDateString();
   };
-
-  // Expose addQuery globally for QueryInterface to use
-  useEffect(() => {
-    (window as any).addToQueryHistory = addQuery;
-  }, [history]);
 
   return (
     <Card className="p-6 border-border bg-card animate-fade-in">
@@ -112,14 +131,17 @@ const QueryHistory = ({ onSelectQuery }: Props) => {
         )}
       </ScrollArea>
       
-      {history.length > 0 && (
+      {history.length > 0 && user && (
         <Button
           variant="outline"
           size="sm"
           className="w-full mt-4"
-          onClick={() => {
+          onClick={async () => {
+            await supabase
+              .from('query_history')
+              .delete()
+              .eq('user_id', user.id);
             setHistory([]);
-            localStorage.removeItem('queryHistory');
           }}
         >
           Clear History

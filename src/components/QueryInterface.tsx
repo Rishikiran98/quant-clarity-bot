@@ -4,6 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import RetrievalVisualization from "./RetrievalVisualization";
 import AnswerDisplay from "./AnswerDisplay";
 
@@ -32,6 +34,7 @@ const QueryInterface = () => {
   const [retrievedChunks, setRetrievedChunks] = useState<RetrievedChunk[]>([]);
   const [answer, setAnswer] = useState("");
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSubmit = async () => {
     if (!query.trim()) return;
@@ -63,12 +66,18 @@ const QueryInterface = () => {
       setAnswer(data.answer);
       setShowResults(true);
       
-      // Add to history
-      const avgSimilarity = data.retrievedChunks.reduce((sum: number, chunk: any) => 
-        sum + chunk.similarity, 0) / data.retrievedChunks.length;
-      
-      if ((window as any).addToQueryHistory) {
-        (window as any).addToQueryHistory(query, data.retrievedChunks.length, avgSimilarity);
+      // Save to database
+      if (user) {
+        const avgSimilarity = data.retrievedChunks.reduce((sum: number, chunk: any) => 
+          sum + chunk.similarity, 0) / data.retrievedChunks.length;
+        
+        await supabase.from('query_history').insert({
+          user_id: user.id,
+          query,
+          documents_retrieved: data.retrievedChunks.length,
+          avg_similarity: avgSimilarity,
+          answer: data.answer
+        });
       }
       
       toast({
