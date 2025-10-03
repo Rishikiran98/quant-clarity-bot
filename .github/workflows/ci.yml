@@ -147,7 +147,7 @@ jobs:
       - name: Run integration tests
         run: |
           export RUN_INTEGRATION_TESTS=true
-          deno test --allow-net --allow-env tests/integration/rag-workflow.test.ts
+          deno test --allow-net --allow-env --allow-read=tests/fixtures tests/integration/rag-workflow.test.ts
 
       - name: Stop Supabase
         if: always()
