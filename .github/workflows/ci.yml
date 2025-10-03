@@ -87,19 +87,16 @@ jobs:
           echo "Waiting for Supabase to be ready..."
           sleep 60
 
-      - name: Get local Supabase credentials
-        id: supabase-creds
+      - name: Export Supabase env vars
         run: |
-          echo "SUPABASE_URL=http://127.0.0.1:54321" >> $GITHUB_OUTPUT
-          echo "SUPABASE_ANON_KEY=$(supabase status | grep 'anon key' | awk '{print $3}')" >> $GITHUB_OUTPUT
+          echo "SUPABASE_URL=http://127.0.0.1:54321" >> $GITHUB_ENV
+          ANON_KEY=$(supabase status | grep 'anon key' | awk '{print $3}')
+          echo "SUPABASE_ANON_KEY=$ANON_KEY" >> $GITHUB_ENV
 
       - name: Run integration tests
         run: |
           export RUN_INTEGRATION_TESTS=true
           deno test --allow-net --allow-env tests/integration/rag-workflow.test.ts
-        env:
-          SUPABASE_URL: ${{ steps.supabase-creds.outputs.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ steps.supabase-creds.outputs.SUPABASE_ANON_KEY }}
 
       - name: Stop Supabase
         if: always()
