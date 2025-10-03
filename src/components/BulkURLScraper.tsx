@@ -64,9 +64,12 @@ const BulkURLScraper = ({ onComplete }: { onComplete: () => void }) => {
 
   const scrapeURL = async (url: string, title: string): Promise<boolean> => {
     try {
+      console.log('Bulk scraping:', title, url);
+      
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
       const response = await fetch(proxyUrl);
       const data = await response.json();
+      console.log('Bulk scrape response:', { title, hasContents: !!data.contents });
       
       if (!data.contents) throw new Error('Failed to fetch content');
 
@@ -79,6 +82,8 @@ const BulkURLScraper = ({ onComplete }: { onComplete: () => void }) => {
 
       if (cleanedContent.length < 100) throw new Error('Insufficient content');
 
+      console.log('Inserting bulk document:', { title, url, userId: user!.id, contentLength: cleanedContent.length });
+      
       const { data: insertedDoc, error: insertError } = await supabase
         .from('documents')
         .insert({
@@ -92,7 +97,12 @@ const BulkURLScraper = ({ onComplete }: { onComplete: () => void }) => {
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      console.log('Bulk insert result:', { title, data: insertedDoc, error: insertError });
+
+      if (insertError) {
+        console.error('Bulk insert error:', title, insertError);
+        throw insertError;
+      }
 
       // Trigger background processing (non-blocking)
       supabase.functions.invoke('process-document', {

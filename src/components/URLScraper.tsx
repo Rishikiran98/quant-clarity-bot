@@ -35,10 +35,15 @@ const URLScraper = ({ onDocumentAdded }: { onDocumentAdded: () => void }) => {
     setIsScrapin(true);
 
     try {
+      console.log('Starting scrape for URL:', url);
+      
       // Fetch website content using a proxy to avoid CORS
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      console.log('Fetching from proxy:', proxyUrl);
+      
       const response = await fetch(proxyUrl);
       const data = await response.json();
+      console.log('Proxy response received:', { hasContents: !!data.contents });
       
       if (!data.contents) {
         throw new Error('Failed to fetch website content');
@@ -63,6 +68,8 @@ const URLScraper = ({ onDocumentAdded }: { onDocumentAdded: () => void }) => {
       }
 
       // Save to database
+      console.log('Attempting to insert document:', { title, url, userId: user.id, contentLength: cleanedContent.length });
+      
       const { data: insertedDoc, error: insertError } = await supabase
         .from('documents')
         .insert({
@@ -76,7 +83,12 @@ const URLScraper = ({ onDocumentAdded }: { onDocumentAdded: () => void }) => {
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      console.log('Insert result:', { data: insertedDoc, error: insertError });
+
+      if (insertError) {
+        console.error('Database insert error:', insertError);
+        throw insertError;
+      }
 
       toast({
         title: 'Processing...',
