@@ -235,8 +235,8 @@ serve(async (req) => {
     } catch (pdfError) {
       const pdfErrorMessage = pdfError instanceof Error ? pdfError.message : String(pdfError);
       console.error(`[${requestId}] PDF extraction error:`, pdfError);
-      await logError(supabase, "PDF_PARSE_500", pdfErrorMessage, req, user.id);
-      return errorResponse("PDF_PARSE_500", "Failed to parse PDF", requestId, 500);
+      await logError(supabase, "PDF_PARSE_400", pdfErrorMessage, req, user.id);
+      return errorResponse("PDF_PARSE_400", "Failed to parse PDF - file may be corrupted or invalid", requestId, 400);
     }
 
   } catch (error) {

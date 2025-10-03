@@ -49,35 +49,30 @@ Deno.test({
     console.log(`Authenticated as user: ${userId}`);
 
     try {
-      // Step 2: Create a minimal but valid PDF
+      // Step 2: Create a proper PDF using pdf-lib
       console.log("Step 2: Creating test PDF...");
       
-      const pdfContent = `%PDF-1.4
-1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
-2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
-3 0 obj<</Type/Page/Parent 2 0 R/Resources<</Font<</F1<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>>>/MediaBox[0 0 612 792]/Contents 4 0 R>>endobj
-4 0 obj<</Length 88>>stream
-BT
-/F1 12 Tf
-50 700 Td
-(Tesla reported strong Q4 2023 revenue growth of 23 percent.) Tj
-ET
-endstream
-endobj
-xref
-0 5
-0000000000 65535 f
-0000000009 00000 n
-0000000058 00000 n
-0000000115 00000 n
-0000000317 00000 n
-trailer<</Size 5/Root 1 0 R>>
-startxref
-455
-%%EOF`;
-
-      const pdfBlob = new Blob([pdfContent], { type: "application/pdf" });
-      const testFile = new File([pdfBlob], "test-financial-doc.pdf", { type: "application/pdf" });
+      const { PDFDocument } = await import("npm:pdf-lib@1.17.1");
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([612, 792]);
+      
+      // Add text content to the PDF
+      const { rgb } = await import("npm:pdf-lib@1.17.1");
+      page.drawText("Tesla Q4 2023 Financial Report", { 
+        x: 50, 
+        y: 700, 
+        size: 20,
+        color: rgb(0, 0, 0)
+      });
+      page.drawText("Tesla reported strong Q4 2023 revenue growth of 23 percent.", { 
+        x: 50, 
+        y: 650, 
+        size: 12,
+        color: rgb(0, 0, 0)
+      });
+      
+      const pdfBytes = await pdfDoc.save();
+      const testFile = new File([pdfBytes], "test-financial-doc.pdf", { type: "application/pdf" });
 
       // Step 3: Upload and process document
       console.log("Step 3: Uploading document...");
@@ -202,13 +197,14 @@ Deno.test({
       body: formData,
     });
 
-    // Should return error, not crash
-    assert(res.status >= 400, "Should return error for invalid PDF");
+    // Should return 400 (client error) for invalid PDF
+    assertEquals(res.status, 400, "Should return 400 for invalid PDF");
     
     const data = await res.json();
     assertExists(data.code, "Should have error code");
+    assertEquals(data.code, "PDF_PARSE_400", "Should return PDF_PARSE_400 code");
     assertExists(data.message, "Should have error message");
     
-    console.log(`✓ Invalid PDF handled gracefully: ${data.code}`);
+    console.log(`✓ Invalid PDF handled gracefully with 400: ${data.code}`);
   },
 });
