@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import URLScraper from './URLScraper';
 import BulkURLScraper from './BulkURLScraper';
+import { ReprocessDocuments } from './ReprocessDocuments';
 import {
   Dialog,
   DialogContent,
@@ -327,7 +328,9 @@ const DocumentManagement = () => {
   };
 
   return (
-    <Card className="border-border/50 bg-card/50 backdrop-blur-sm p-6">
+    <div className="space-y-6">
+      <ReprocessDocuments />
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <FileText className="h-6 w-6 text-primary" />
@@ -488,6 +491,7 @@ const DocumentManagement = () => {
         </div>
       </ScrollArea>
     </Card>
+    </div>
   );
 };
 

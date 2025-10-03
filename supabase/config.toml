@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.cron-health-check]
 verify_jwt = false
+
+[functions.reprocess-documents]
+verify_jwt = true
