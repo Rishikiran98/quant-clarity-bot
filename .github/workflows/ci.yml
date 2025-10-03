@@ -98,6 +98,29 @@ jobs:
           echo "SUPABASE_ANON_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_KEY=sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz" >> $GITHUB_ENV
 
+      - name: Setup storage bucket and policies
+        run: |
+          echo "Creating storage bucket..."
+          supabase db execute "
+            -- Create storage bucket if not exists
+            INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+            VALUES ('financial-documents', 'financial-documents', false, 26214400, ARRAY['application/pdf']::text[])
+            ON CONFLICT (id) DO NOTHING;
+            
+            -- Allow authenticated users to upload
+            CREATE POLICY IF NOT EXISTS 'Users can upload own documents'
+            ON storage.objects FOR INSERT
+            TO authenticated
+            WITH CHECK (bucket_id = 'financial-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+            
+            -- Allow authenticated users to read own documents
+            CREATE POLICY IF NOT EXISTS 'Users can read own documents'
+            ON storage.objects FOR SELECT
+            TO authenticated
+            USING (bucket_id = 'financial-documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+          "
+          echo "✅ Storage bucket configured!"
+
       - name: Serve edge functions locally
         run: |
           echo "Starting edge functions..."
