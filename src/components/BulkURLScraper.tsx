@@ -66,48 +66,15 @@ const BulkURLScraper = ({ onComplete }: { onComplete: () => void }) => {
     try {
       console.log('Bulk scraping:', title, url);
       
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      const response = await fetch(proxyUrl);
-      const data = await response.json();
-      console.log('Bulk scrape response:', { title, hasContents: !!data.contents });
-      
-      if (!data.contents) throw new Error('Failed to fetch content');
-
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(data.contents, 'text/html');
-      doc.querySelectorAll('script, style').forEach(el => el.remove());
-      
-      const textContent = doc.body.textContent || '';
-      const cleanedContent = textContent.replace(/\s+/g, ' ').trim();
-
-      if (cleanedContent.length < 100) throw new Error('Insufficient content');
-
-      console.log('Inserting bulk document:', { title, url, userId: user!.id, contentLength: cleanedContent.length });
-      
-      const { data: insertedDoc, error: insertError } = await supabase
-        .from('documents')
-        .insert({
-          title: title.substring(0, 200),
-          content: cleanedContent.substring(0, 50000),
-          source: url,
-          owner_id: user!.id,
-          uploaded_by: user!.id,
-          mime_type: 'text/html'
-        })
-        .select()
-        .single();
-
-      console.log('Bulk insert result:', { title, data: insertedDoc, error: insertError });
-
-      if (insertError) {
-        console.error('Bulk insert error:', title, insertError);
-        throw insertError;
-      }
-
-      // Trigger background processing (non-blocking)
-      supabase.functions.invoke('process-document', {
-        body: { documentId: insertedDoc.id }
+      const { data, error } = await supabase.functions.invoke('scrape-url', {
+        body: { url }
       });
+
+      console.log('Bulk scrape response:', { title, data, error });
+
+      if (error || !data?.success) {
+        throw new Error(error?.message || data?.error || 'Failed to scrape');
+      }
 
       return true;
     } catch (error) {

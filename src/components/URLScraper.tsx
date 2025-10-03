@@ -37,84 +37,24 @@ const URLScraper = ({ onDocumentAdded }: { onDocumentAdded: () => void }) => {
     try {
       console.log('Starting scrape for URL:', url);
       
-      // Fetch website content using a proxy to avoid CORS
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      console.log('Fetching from proxy:', proxyUrl);
-      
-      const response = await fetch(proxyUrl);
-      const data = await response.json();
-      console.log('Proxy response received:', { hasContents: !!data.contents });
-      
-      if (!data.contents) {
-        throw new Error('Failed to fetch website content');
+      const { data, error } = await supabase.functions.invoke('scrape-url', {
+        body: { url }
+      });
+
+      console.log('Scrape response:', { data, error });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to scrape URL');
       }
 
-      // Parse HTML to extract text content
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(data.contents, 'text/html');
-      
-      // Remove script and style elements
-      doc.querySelectorAll('script, style').forEach(el => el.remove());
-      
-      // Extract text content
-      const textContent = doc.body.textContent || '';
-      const cleanedContent = textContent.replace(/\s+/g, ' ').trim();
-
-      // Extract title
-      const title = doc.querySelector('title')?.textContent || new URL(url).hostname;
-
-      if (cleanedContent.length < 100) {
-        throw new Error('Insufficient content extracted from URL');
-      }
-
-      // Save to database
-      console.log('Attempting to insert document:', { title, url, userId: user.id, contentLength: cleanedContent.length });
-      
-      const { data: insertedDoc, error: insertError } = await supabase
-        .from('documents')
-        .insert({
-          title: title.substring(0, 200),
-          content: cleanedContent.substring(0, 50000), // Limit to 50k chars
-          source: url,
-          owner_id: user.id,
-          uploaded_by: user.id,
-          mime_type: 'text/html'
-        })
-        .select()
-        .single();
-
-      console.log('Insert result:', { data: insertedDoc, error: insertError });
-
-      if (insertError) {
-        console.error('Database insert error:', insertError);
-        throw insertError;
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to scrape URL');
       }
 
       toast({
-        title: 'Processing...',
-        description: 'Website scraped. Processing embeddings in background.'
+        title: 'Success',
+        description: `Website scraped successfully! Processing ${data.contentLength} characters.`
       });
-
-      // Trigger background processing
-      supabase.functions
-        .invoke('process-document', {
-          body: { documentId: insertedDoc.id }
-        })
-        .then(({ error }) => {
-          if (error) {
-            console.error('Processing error:', error);
-            toast({
-              title: 'Processing Warning',
-              description: 'Document saved but processing failed.',
-              variant: 'destructive'
-            });
-          } else {
-            toast({
-              title: 'Success',
-              description: 'Website content processed successfully!'
-            });
-          }
-        });
 
       setUrl('');
       setIsOpen(false);
