@@ -83,20 +83,31 @@ serve(async (req) => {
 
     console.log(`[${requestId}] Processing document: ${title} (${file.size} bytes)`);
 
-    // Extract text from PDF using pdf-parse
+    // Extract text from PDF using pdfjs-dist (Deno-compatible)
     const extractStart = performance.now();
     const buffer = await file.arrayBuffer();
     
     try {
-      const pdfParse = (await import('https://esm.sh/pdf-parse@1.1.1')).default;
-      const uint8Array = new Uint8Array(buffer);
+      // Use pdfjs-dist for proper PDF text extraction
+      const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.min.mjs');
       
+      const uint8Array = new Uint8Array(buffer);
       console.log(`[${requestId}] PDF buffer size: ${uint8Array.length} bytes`);
       
-      const data = await pdfParse(uint8Array);
+      const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+      const pdfDoc = await loadingTask.promise;
+      const numPages = pdfDoc.numPages;
       
-      const fullText = data.text;
-      const numPages = data.numpages;
+      // Extract text from all pages
+      let fullText = '';
+      for (let i = 1; i <= numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n';
+      }
       
       const extractTime = performance.now() - extractStart;
       
