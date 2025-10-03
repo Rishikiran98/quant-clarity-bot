@@ -176,7 +176,7 @@ serve(async (req) => {
     }
 
     const retrievedChunks = chunks.map((c: any) => ({
-      content: c.text,
+      content: c.chunk_text,
       source: c.doc_title || 'Unknown',
       similarity: c.similarity,
       metadata: c.chunk_metadata || {}
