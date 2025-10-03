@@ -83,35 +83,20 @@ serve(async (req) => {
 
     console.log(`[${requestId}] Processing document: ${title} (${file.size} bytes)`);
 
-    // Extract text from PDF using PDF.js
+    // Extract text from PDF using pdf-parse
     const extractStart = performance.now();
     const buffer = await file.arrayBuffer();
     
     try {
-      const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs');
+      const pdfParse = (await import('https://esm.sh/pdf-parse@1.1.1')).default;
       const uint8Array = new Uint8Array(buffer);
       
       console.log(`[${requestId}] PDF buffer size: ${uint8Array.length} bytes`);
       
-      const loadingTask = pdfjsLib.getDocument({ 
-        data: uint8Array,
-        useWorkerFetch: false,
-        isEvalSupported: false,
-        useSystemFonts: true
-      });
-      const pdfDoc = await loadingTask.promise;
+      const data = await pdfParse(uint8Array);
       
-      let fullText = '';
-      const numPages = pdfDoc.numPages;
-      
-      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        const page = await pdfDoc.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        fullText += `\n\n--- Page ${pageNum} ---\n${pageText}`;
-      }
+      const fullText = data.text;
+      const numPages = data.numpages;
       
       const extractTime = performance.now() - extractStart;
       
