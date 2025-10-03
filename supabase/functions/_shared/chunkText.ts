@@ -3,7 +3,7 @@
  * Used by document processing to split long texts into manageable chunks
  */
 
-export function chunkText(text: string, size = 1000, overlap = 200): string[] {
+export function chunkText(text: string, size = 1500, overlap = 300): string[] {
   const chunks: string[] = [];
   let i = 0;
   
@@ -24,7 +24,7 @@ export function chunkText(text: string, size = 1000, overlap = 200): string[] {
 /**
  * Split text by sentences for better semantic chunking
  */
-export function chunkTextBySentences(text: string, maxSize = 1000, overlap = 200): string[] {
+export function chunkTextBySentences(text: string, maxSize = 1500, overlap = 300): string[] {
   const sentences = text.split(/[.!?]+\s+/);
   const chunks: string[] = [];
   let currentChunk = '';
@@ -47,4 +47,48 @@ export function chunkTextBySentences(text: string, maxSize = 1000, overlap = 200
   }
   
   return chunks.filter(c => c.length > 50); // Filter out tiny chunks
+}
+
+/**
+ * Advanced semantic chunking with paragraph preservation
+ */
+export function chunkTextSemantic(text: string, maxSize = 1500, minSize = 500, overlap = 300): string[] {
+  const paragraphs = text.split(/\n\n+/);
+  const chunks: string[] = [];
+  let currentChunk = '';
+  
+  for (const paragraph of paragraphs) {
+    const trimmedPara = paragraph.trim();
+    if (!trimmedPara) continue;
+    
+    // If adding this paragraph exceeds max size and we have content
+    if (currentChunk && (currentChunk + '\n\n' + trimmedPara).length > maxSize) {
+      // Only push if we meet minimum size
+      if (currentChunk.length >= minSize) {
+        chunks.push(currentChunk.trim());
+        
+        // Add overlap: last N characters
+        const overlapText = currentChunk.slice(-overlap);
+        currentChunk = overlapText + '\n\n' + trimmedPara;
+      } else {
+        // Too small, just add the paragraph
+        currentChunk += '\n\n' + trimmedPara;
+      }
+    } else {
+      currentChunk += (currentChunk ? '\n\n' : '') + trimmedPara;
+    }
+    
+    // If current chunk is very large, split it
+    if (currentChunk.length > maxSize * 1.5) {
+      chunks.push(currentChunk.trim());
+      currentChunk = '';
+    }
+  }
+  
+  // Add final chunk if it meets minimum size
+  if (currentChunk.trim() && currentChunk.length >= minSize) {
+    chunks.push(currentChunk.trim());
+  }
+  
+  return chunks.filter(c => c.length >= 100);
 }
