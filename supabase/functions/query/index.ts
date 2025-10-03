@@ -2,6 +2,7 @@
 // All error responses include error_code, message, and requestId for proper test validation
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rerankChunks } from "../_shared/rerank.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -113,7 +114,7 @@ serve(async (req) => {
     // Parse request
     const body = await req.json().catch(() => ({}));
     const question: string = (body?.question ?? "").toString();
-    const k: number = Math.min(Number(body?.k ?? 8), 20); // Increased from 5 to 8 for better coverage
+    const k: number = Math.min(Number(body?.k ?? 15), 30); // Retrieve more, then re-rank
     
     if (!question.trim()) {
       return errorResponse("VALIDATION_400", "Question required", requestId, 400);
@@ -181,27 +182,65 @@ serve(async (req) => {
 
     const dbLatency = Math.round(performance.now() - dbStart);
 
-    // Filter chunks by relevance threshold and build enriched context
-    const relevantChunks = (chunks ?? []).filter((c: any) => c.similarity >= 0.5); // Only use chunks with >50% similarity
-    
-    if (relevantChunks.length === 0) {
-      // No relevant documents found
+    if (!chunks || chunks.length === 0) {
+      // No documents found at all
       await supabase.from("query_history").insert({
         user_id: user.id,
         query: question,
-        answer: "I couldn't find relevant information in the knowledge base to answer this question. Please ensure relevant documents have been uploaded, or try rephrasing your question.",
+        answer: "No documents found in the knowledge base. Please upload relevant documents first.",
         avg_similarity: 0,
         documents_retrieved: 0,
       });
       
       return json({
         requestId,
-        answer: "I couldn't find relevant information in the knowledge base to answer this question. The available documents may not cover this topic. Please try:\n1. Uploading relevant documents\n2. Rephrasing your question\n3. Asking about topics covered in your existing documents",
+        answer: "I couldn't find any documents in your knowledge base. Please upload relevant documents to get started.",
         sources: [],
         metrics: {
           totalLatency: Math.round(performance.now() - start),
           chunksRetrieved: 0,
           avgSimilarity: 0,
+        },
+      });
+    }
+
+    // Apply re-ranking with keyword matching and diversity
+    const rerankStart = performance.now();
+    const rerankedChunks = rerankChunks(question, chunks, 8); // Top 8 after re-ranking
+    const rerankLatency = Math.round(performance.now() - rerankStart);
+    
+    console.log(`[${requestId}] Re-ranked ${chunks.length} chunks to top ${rerankedChunks.length} in ${rerankLatency}ms`);
+    
+    // Filter by minimum relevance threshold
+    const relevantChunks = rerankedChunks.filter((c: any) => c.similarity >= 0.4); // Lowered to 40% after re-ranking
+    
+    if (relevantChunks.length === 0) {
+      // Found chunks but none are relevant enough
+      const maxSim = Math.max(...chunks.map((c: any) => c.similarity));
+      
+      await supabase.from("query_history").insert({
+        user_id: user.id,
+        query: question,
+        answer: `No sufficiently relevant information found (best match: ${(maxSim * 100).toFixed(1)}%). The question may be outside the scope of uploaded documents.`,
+        avg_similarity: maxSim,
+        documents_retrieved: 0,
+      });
+      
+      return json({
+        requestId,
+        answer: `I couldn't find information relevant enough to answer this question confidently. The best match I found was only ${(maxSim * 100).toFixed(1)}% similar.\n\nThis suggests:\n1. The topic may not be covered in your uploaded documents\n2. You might need to rephrase the question\n3. Additional documents on this topic should be uploaded\n\nBest match found from: "${chunks[0].doc_title}"`,
+        sources: chunks.slice(0, 3).map((c: any, i: number) => ({
+          label: `S${i + 1}`,
+          document_id: c.document_id,
+          document_title: c.doc_title || "Untitled",
+          similarity: c.similarity,
+          preview: c.chunk_text.slice(0, 200),
+        })),
+        metrics: {
+          totalLatency: Math.round(performance.now() - start),
+          chunksRetrieved: 0,
+          avgSimilarity: maxSim,
+          totalChunksFound: chunks.length,
         },
       });
     }
@@ -213,21 +252,23 @@ serve(async (req) => {
         const docTitle = c.doc_title || "Untitled";
         const similarity = (c.similarity * 100).toFixed(1);
         
-        return `[Source ${i + 1}: ${docTitle} - ${pageInfo}, Relevance: ${similarity}%]
+        return `[Source ${i + 1}: "${docTitle}" - ${pageInfo}, Relevance: ${similarity}%]
 ${c.chunk_text.trim()}`;
       })
       .join("\n\n" + "=".repeat(80) + "\n\n");
 
-    const prompt = `You are an expert financial analysis assistant. Your task is to provide comprehensive, accurate answers based ONLY on the provided source documents.
+    const prompt = `You are an expert financial analysis assistant with deep knowledge of corporate finance, accounting, and investment analysis.
+
+TASK: Provide a comprehensive, accurate answer to the user's question based EXCLUSIVELY on the provided source documents.
 
 INSTRUCTIONS:
-1. Synthesize information from multiple sources when available
-2. Cite specific sources using [S1], [S2], etc. for key facts and figures
-3. If sources contain conflicting information, acknowledge it
-4. Structure your answer clearly with relevant sections
-5. Include specific numbers, dates, and metrics when available
-6. If the sources don't fully answer the question, state what information is missing
-7. Be precise and avoid generalizations not supported by the sources
+1. **Synthesize & Structure**: Combine information from multiple sources when available. Structure your answer clearly with relevant sections or bullet points
+2. **Cite Sources**: Use inline citations [S1], [S2], etc. for every key fact, figure, or claim
+3. **Be Specific**: Include exact numbers, dates, percentages, and metrics when mentioned in sources
+4. **Handle Conflicts**: If sources contain contradictory information, acknowledge both perspectives with citations
+5. **Acknowledge Gaps**: If sources don't fully answer the question, clearly state what information is missing or unavailable
+6. **Professional Tone**: Write in a clear, professional style appropriate for financial analysis
+7. **No Hallucination**: Never introduce information not present in the sources, even if you know it from general knowledge
 
 QUESTION:
 ${question}
@@ -235,7 +276,7 @@ ${question}
 AVAILABLE SOURCES:
 ${context}
 
-Provide a comprehensive answer with inline citations:`;
+Provide your comprehensive answer with inline citations:`;
 
     // Generate answer using Lovable AI
     const llmStart = performance.now();
@@ -315,9 +356,11 @@ Provide a comprehensive answer with inline citations:`;
         llmLatency,
         dbLatency,
         embLatency,
+        rerankLatency,
         avgSimilarity,
         chunksRetrieved: relevantChunks.length,
-        totalChunksFound: chunks?.length ?? 0,
+        totalChunksFound: chunks.length,
+        chunksAfterRerank: rerankedChunks.length,
       },
     });
   } catch (error) {

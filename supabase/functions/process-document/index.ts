@@ -1,7 +1,7 @@
 // Production-ready document processing with PDF.js
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { chunkText } from "../_shared/chunkText.ts";
+import { chunkTextSemantic } from "../_shared/chunkText.ts";
 import { logError, logPerformance, errorResponse, successResponse } from "../_shared/logger.ts";
 
 const CORS = {
@@ -106,12 +106,12 @@ serve(async (req) => {
         return errorResponse("VALIDATION_400", "PDF contains no extractable text", requestId, 400);
       }
 
-      // Chunk text
+      // Chunk text using semantic chunking for better context preservation
       const chunkStart = performance.now();
-      const chunks = chunkText(fullText, 1000, 200);
+      const chunks = chunkTextSemantic(fullText, 1500, 500, 300);
       const chunkTime = performance.now() - chunkStart;
 
-      console.log(`[${requestId}] Created ${chunks.length} chunks in ${chunkTime.toFixed(0)}ms`);
+      console.log(`[${requestId}] Created ${chunks.length} semantic chunks in ${chunkTime.toFixed(0)}ms`);
 
       // Generate embeddings in batches
       const embeddingStart = performance.now();
