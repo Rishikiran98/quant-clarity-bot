@@ -103,19 +103,89 @@ serve(async (req) => {
 
     console.log('Document inserted:', insertedDoc.id);
 
-    // Trigger background processing with service role
-    const processResult = await fetch(`${supabaseUrl}/functions/v1/process-document`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ documentId: insertedDoc.id })
-    });
+    // Generate embeddings inline
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      console.warn('OpenAI API key not configured, skipping embeddings');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          documentId: insertedDoc.id,
+          title: title,
+          contentLength: cleanedContent.length,
+          warning: 'Embeddings not generated - API key missing'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    if (!processResult.ok) {
-      const errorText = await processResult.text();
-      console.error('Processing error:', processResult.status, errorText);
+    // Chunk the text
+    const chunkText = (text: string, size = 1000, overlap = 200): string[] => {
+      const chunks: string[] = [];
+      let i = 0;
+      while (i < text.length) {
+        const end = Math.min(i + size, text.length);
+        const chunk = text.slice(i, end).trim();
+        if (chunk.length > 0) chunks.push(chunk);
+        i += size - overlap;
+      }
+      return chunks;
+    };
+
+    const chunks = chunkText(cleanedContent);
+    console.log(`Created ${chunks.length} chunks`);
+
+    // Generate embeddings in batches
+    const batchSize = 10;
+    const chunksWithEmbeddings: any[] = [];
+
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, i + batchSize);
+      
+      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: batch,
+        }),
+      });
+
+      if (!embeddingResponse.ok) {
+        console.error('OpenAI API error:', await embeddingResponse.text());
+        break;
+      }
+
+      const embeddingData = await embeddingResponse.json();
+      
+      batch.forEach((text, idx) => {
+        chunksWithEmbeddings.push({
+          text,
+          page_no: 1,
+          char_start: i + idx,
+          char_end: i + idx + text.length,
+          embedding: embeddingData.data[idx].embedding,
+          metadata: {}
+        });
+      });
+    }
+
+    // Ingest chunks and embeddings
+    if (chunksWithEmbeddings.length > 0) {
+      const { error: ingestError } = await supabase.rpc('ingest_document_with_embeddings', {
+        p_document_id: insertedDoc.id,
+        p_chunks: chunksWithEmbeddings,
+        p_user_id: user.id
+      });
+
+      if (ingestError) {
+        console.error('Ingest error:', ingestError);
+      } else {
+        console.log(`✓ Ingested ${chunksWithEmbeddings.length} chunks`);
+      }
     }
 
     return new Response(
