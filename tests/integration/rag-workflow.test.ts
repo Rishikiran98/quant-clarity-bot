@@ -5,6 +5,7 @@
 
 import { assertEquals, assertExists, assert } from "https://deno.land/std@0.224.0/testing/asserts.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "http://127.0.0.1:54321";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -49,10 +50,35 @@ Deno.test({
     console.log(`Authenticated as user: ${userId}`);
 
     try {
-      // Step 2: Load fixture PDF
-      console.log("Step 2: Loading test PDF...");
+      // Step 2: Generate a valid test PDF with pdf-lib
+      console.log("Step 2: Generating test PDF...");
       
-      const pdfBytes = await Deno.readFile("tests/fixtures/sample.pdf");
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([600, 400]);
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      
+      page.drawText("Tesla Q4 2023 Financial Report", {
+        x: 50,
+        y: 350,
+        size: 20,
+        font,
+      });
+      
+      page.drawText("Tesla reported strong Q4 2023 revenue growth of 23 percent.", {
+        x: 50,
+        y: 300,
+        size: 12,
+        font,
+      });
+      
+      page.drawText("The company achieved record deliveries and improved margins.", {
+        x: 50,
+        y: 280,
+        size: 12,
+        font,
+      });
+      
+      const pdfBytes = await pdfDoc.save();
       const testFile = new File([pdfBytes], "test-financial-doc.pdf", { type: "application/pdf" });
 
       // Step 3: Upload and process document
