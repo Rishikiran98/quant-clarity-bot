@@ -9,10 +9,10 @@ interface Chunk {
   content: string;
   source: string;
   similarity: number;
-  metadata: {
-    ticker: string;
-    fiscal_year: number;
-    category: string;
+  metadata?: {
+    ticker?: string;
+    fiscal_year?: number;
+    category?: string;
   };
 }
 
@@ -55,9 +55,12 @@ const RetrievalVisualization = ({ chunks }: Props) => {
               style={{ animationDelay: `${idx * 100}ms` }}
             >
               <div className="flex items-start justify-between mb-3">
-                <Badge variant="outline" className="text-xs">
-                  {chunk.metadata.ticker}
-                </Badge>
+                {chunk.metadata?.ticker && (
+                  <Badge variant="outline" className="text-xs">
+                    {chunk.metadata.ticker}
+                  </Badge>
+                )}
+                {!chunk.metadata?.ticker && <div />}
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-accent" />
                   <span className="text-sm font-mono text-accent">
@@ -91,7 +94,9 @@ const RetrievalVisualization = ({ chunks }: Props) => {
               
               <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
                 <span>{chunk.source}</span>
-                <span className="text-primary">{chunk.metadata.category}</span>
+                {chunk.metadata?.category && (
+                  <span className="text-primary">{chunk.metadata.category}</span>
+                )}
               </div>
               
               {/* Similarity bar with animation */}
