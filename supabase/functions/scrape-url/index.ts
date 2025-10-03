@@ -162,11 +162,13 @@ serve(async (req) => {
       const embeddingData = await embeddingResponse.json();
       
       batch.forEach((text, idx) => {
+        const chunkIndex = i + idx;
         chunksWithEmbeddings.push({
           text,
+          chunk_index: chunkIndex,
           page_no: 1,
-          char_start: i + idx,
-          char_end: i + idx + text.length,
+          char_start: chunkIndex * 1000,
+          char_end: (chunkIndex + 1) * 1000,
           embedding: embeddingData.data[idx].embedding,
           metadata: {}
         });
