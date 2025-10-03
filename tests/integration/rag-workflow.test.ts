@@ -167,6 +167,8 @@ startxref
 Deno.test({
   name: "RAG workflow: handles invalid PDF gracefully",
   ignore: !Deno.env.get("RUN_INTEGRATION_TESTS"),
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
