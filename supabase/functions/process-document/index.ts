@@ -91,7 +91,14 @@ serve(async (req) => {
       const pdfjsLib = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs');
       const uint8Array = new Uint8Array(buffer);
       
-      const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+      console.log(`[${requestId}] PDF buffer size: ${uint8Array.length} bytes`);
+      
+      const loadingTask = pdfjsLib.getDocument({ 
+        data: uint8Array,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true
+      });
       const pdfDoc = await loadingTask.promise;
       
       let fullText = '';
@@ -234,7 +241,10 @@ serve(async (req) => {
       });
     } catch (pdfError) {
       const pdfErrorMessage = pdfError instanceof Error ? pdfError.message : String(pdfError);
-      console.error(`[${requestId}] PDF extraction error:`, pdfError);
+      const pdfErrorStack = pdfError instanceof Error ? pdfError.stack : '';
+      console.error(`[${requestId}] PDF extraction error:`, pdfErrorMessage);
+      console.error(`[${requestId}] PDF error stack:`, pdfErrorStack);
+      console.error(`[${requestId}] PDF error details:`, pdfError);
       await logError(supabase, "PDF_PARSE_400", pdfErrorMessage, req, user.id);
       return errorResponse("PDF_PARSE_400", "Failed to parse PDF - file may be corrupted or invalid", requestId, 400);
     }
