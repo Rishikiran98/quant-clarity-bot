@@ -49,29 +49,10 @@ Deno.test({
     console.log(`Authenticated as user: ${userId}`);
 
     try {
-      // Step 2: Create a proper PDF using pdf-lib
-      console.log("Step 2: Creating test PDF...");
+      // Step 2: Load fixture PDF
+      console.log("Step 2: Loading test PDF...");
       
-      const { PDFDocument } = await import("npm:pdf-lib@1.17.1");
-      const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([612, 792]);
-      
-      // Add text content to the PDF
-      const { rgb } = await import("npm:pdf-lib@1.17.1");
-      page.drawText("Tesla Q4 2023 Financial Report", { 
-        x: 50, 
-        y: 700, 
-        size: 20,
-        color: rgb(0, 0, 0)
-      });
-      page.drawText("Tesla reported strong Q4 2023 revenue growth of 23 percent.", { 
-        x: 50, 
-        y: 650, 
-        size: 12,
-        color: rgb(0, 0, 0)
-      });
-      
-      const pdfBytes = await pdfDoc.save();
+      const pdfBytes = await Deno.readFile("tests/fixtures/sample.pdf");
       const testFile = new File([pdfBytes], "test-financial-doc.pdf", { type: "application/pdf" });
 
       // Step 3: Upload and process document
