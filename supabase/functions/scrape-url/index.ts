@@ -103,13 +103,19 @@ serve(async (req) => {
 
     console.log('Document inserted:', insertedDoc.id);
 
-    // Trigger background processing
-    const processResult = await supabase.functions.invoke('process-document', {
-      body: { documentId: insertedDoc.id }
+    // Trigger background processing with service role
+    const processResult = await fetch(`${supabaseUrl}/functions/v1/process-document`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ documentId: insertedDoc.id })
     });
 
-    if (processResult.error) {
-      console.error('Processing error:', processResult.error);
+    if (!processResult.ok) {
+      const errorText = await processResult.text();
+      console.error('Processing error:', processResult.status, errorText);
     }
 
     return new Response(
