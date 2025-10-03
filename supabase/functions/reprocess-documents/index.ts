@@ -75,27 +75,99 @@ serve(async (req) => {
 
     console.log(`Found ${documentsWithoutEmbeddings.length} documents without embeddings`);
 
-    // Trigger processing for each document
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    // Import chunking function
+    const chunkText = (text: string, size = 1000, overlap = 200): string[] => {
+      const chunks: string[] = [];
+      let i = 0;
+      while (i < text.length) {
+        const end = Math.min(i + size, text.length);
+        const chunk = text.slice(i, end).trim();
+        if (chunk.length > 0) chunks.push(chunk);
+        i += size - overlap;
+      }
+      return chunks;
+    };
+
+    // Process each document
     const results = [];
     for (const doc of documentsWithoutEmbeddings) {
       console.log(`Processing document: ${doc.title}`);
       
-      const processResult = await fetch(`${supabaseUrl}/functions/v1/process-document`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ documentId: doc.id })
-      });
+      try {
+        // Get the full document with content
+        const { data: fullDoc, error: docError } = await supabase
+          .from('documents')
+          .select('content')
+          .eq('id', doc.id)
+          .single();
 
-      if (processResult.ok) {
+        if (docError || !fullDoc?.content) {
+          results.push({ id: doc.id, title: doc.title, status: 'failed', error: 'No content found' });
+          continue;
+        }
+
+        // Chunk the text
+        const chunks = chunkText(fullDoc.content);
+        console.log(`Created ${chunks.length} chunks for ${doc.title}`);
+
+        // Generate embeddings in batches
+        const batchSize = 10;
+        const chunksWithEmbeddings: any[] = [];
+
+        for (let i = 0; i < chunks.length; i += batchSize) {
+          const batch = chunks.slice(i, i + batchSize);
+          
+          const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openAIApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'text-embedding-3-small',
+              input: batch,
+            }),
+          });
+
+          if (!embeddingResponse.ok) {
+            throw new Error(`OpenAI API error: ${await embeddingResponse.text()}`);
+          }
+
+          const embeddingData = await embeddingResponse.json();
+          
+          batch.forEach((text, idx) => {
+            chunksWithEmbeddings.push({
+              text,
+              page_no: 1,
+              char_start: i + idx,
+              char_end: i + idx + text.length,
+              embedding: embeddingData.data[idx].embedding,
+              metadata: {}
+            });
+          });
+        }
+
+        // Ingest chunks and embeddings
+        const { error: ingestError } = await supabase.rpc('ingest_document_with_embeddings', {
+          p_document_id: doc.id,
+          p_chunks: chunksWithEmbeddings,
+          p_user_id: user.id
+        });
+
+        if (ingestError) {
+          throw ingestError;
+        }
+
         results.push({ id: doc.id, title: doc.title, status: 'success' });
         console.log(`✓ Processed: ${doc.title}`);
-      } else {
-        const errorText = await processResult.text();
-        results.push({ id: doc.id, title: doc.title, status: 'failed', error: errorText });
-        console.error(`✗ Failed: ${doc.title}`, errorText);
+      } catch (error: any) {
+        results.push({ id: doc.id, title: doc.title, status: 'failed', error: error.message });
+        console.error(`✗ Failed: ${doc.title}`, error);
       }
     }
 
