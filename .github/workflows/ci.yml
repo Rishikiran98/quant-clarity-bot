@@ -216,6 +216,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set git identity
+        run: |
+          git config --global user.name "Rishikiran98"
+          git config --global user.email "rishikiransai@gmail.com"
+
       - name: Deploy notification
         run: |
           echo "🚀 Deploying to production..."
