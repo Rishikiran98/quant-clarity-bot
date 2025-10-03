@@ -89,7 +89,7 @@ jobs:
 
       - name: Set edge function secrets
         run: |
-          echo "OPENAI_API_KEY=test-key" > supabase/.env.local
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" > supabase/.env.local
           echo "LOVABLE_API_KEY=test-key" >> supabase/.env.local
 
       - name: Export Supabase env vars
