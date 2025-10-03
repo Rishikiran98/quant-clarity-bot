@@ -20,6 +20,7 @@ import {
   Plus
 } from 'lucide-react';
 import URLScraper from './URLScraper';
+import BulkURLScraper from './BulkURLScraper';
 import {
   Dialog,
   DialogContent,
@@ -343,10 +344,11 @@ const DocumentManagement = () => {
 
         {isAdmin && (
           <div className="flex gap-2">
+            <BulkURLScraper onComplete={fetchDocuments} />
             <URLScraper onDocumentAdded={fetchDocuments} />
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button variant="outline">
                   <Plus className="h-4 w-4 mr-2" />
                   Upload Document
                 </Button>
