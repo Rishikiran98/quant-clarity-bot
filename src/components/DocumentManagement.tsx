@@ -19,6 +19,7 @@ import {
   Search,
   Plus
 } from 'lucide-react';
+import URLScraper from './URLScraper';
 import {
   Dialog,
   DialogContent,
@@ -341,13 +342,15 @@ const DocumentManagement = () => {
         </div>
 
         {isAdmin && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Upload Document
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <URLScraper onDocumentAdded={fetchDocuments} />
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Upload Document
+                </Button>
+              </DialogTrigger>
             <DialogContent className="bg-card/95 backdrop-blur-sm max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Upload Financial Document</DialogTitle>
@@ -409,6 +412,7 @@ const DocumentManagement = () => {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
 
