@@ -83,20 +83,19 @@ serve(async (req) => {
 
     console.log(`[${requestId}] Processing document: ${title} (${file.size} bytes)`);
 
-    // Extract text from PDF using unpdf (Deno-compatible)
+    // Extract text from PDF using pdf-parse (robust, Deno-compatible)
     const extractStart = performance.now();
     const buffer = await file.arrayBuffer();
     
     try {
-      // Use unpdf for Deno-compatible PDF text extraction
-      const { extractText } = await import('https://esm.sh/unpdf@0.11.0');
+      // Use pdf-parse for reliable PDF text extraction
+      const pdfParse = (await import('https://esm.sh/pdf-parse@1.1.1')).default;
       
-      const uint8Array = new Uint8Array(buffer);
-      console.log(`[${requestId}] PDF buffer size: ${uint8Array.length} bytes`);
+      console.log(`[${requestId}] PDF buffer size: ${buffer.byteLength} bytes`);
       
-      const result = await extractText(uint8Array);
-      const numPages = result.totalPages || 1;
-      const fullText = Array.isArray(result.text) ? result.text.join('\n') : result.text;
+      const data = await pdfParse(buffer);
+      const numPages = data.numpages;
+      const fullText = data.text;
       
       const extractTime = performance.now() - extractStart;
       
