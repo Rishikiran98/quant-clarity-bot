@@ -92,6 +92,10 @@ startxref
         body: formData,
       });
 
+      if (uploadRes.status !== 200) {
+        const errorBody = await uploadRes.text();
+        console.error(`Upload failed with status ${uploadRes.status}:`, errorBody);
+      }
       assertEquals(uploadRes.status, 200, "Upload should succeed");
       const uploadData = await uploadRes.json();
       
