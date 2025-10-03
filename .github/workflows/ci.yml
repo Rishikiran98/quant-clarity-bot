@@ -172,7 +172,7 @@ jobs:
           TOKEN: ${{ secrets.BETA_TEST_JWT }}
 
       - name: Upload k6 results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: k6-results
