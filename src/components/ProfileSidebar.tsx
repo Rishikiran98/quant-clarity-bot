@@ -1,11 +1,44 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Mail, Calendar, Activity, Award } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProfileSidebar = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState({
+    queriesMade: 0,
+    documentsAccessed: 0,
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!user) return;
+
+      try {
+        const { count: queryCount } = await supabase
+          .from('query_history')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        const { count: docCount } = await supabase
+          .from('documents')
+          .select('*', { count: 'exact', head: true })
+          .eq('owner_id', user.id);
+
+        setStats({
+          queriesMade: queryCount || 0,
+          documentsAccessed: docCount || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching profile stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, [user]);
 
   const getInitials = () => {
     if (!user?.email) return 'U';
@@ -22,9 +55,9 @@ const ProfileSidebar = () => {
         year: 'numeric'
       });
 
-  const stats = [
-    { label: 'Queries Made', value: '247', icon: Activity },
-    { label: 'Documents Accessed', value: '89', icon: Award },
+  const activityStats = [
+    { label: 'Queries Made', value: stats.queriesMade.toString(), icon: Activity },
+    { label: 'Documents Accessed', value: stats.documentsAccessed.toString(), icon: Award },
   ];
 
   return (
@@ -57,7 +90,7 @@ const ProfileSidebar = () => {
 
       <div className="space-y-3 pt-4 border-t border-border/50">
         <h4 className="text-sm font-semibold">Activity Stats</h4>
-        {stats.map((stat, index) => {
+        {activityStats.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <div key={index} className="flex items-center justify-between">
