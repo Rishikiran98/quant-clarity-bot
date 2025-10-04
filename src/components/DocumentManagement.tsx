@@ -126,10 +126,24 @@ const DocumentManagement = () => {
       return;
     }
 
-    if (!newDoc.title || (!newDoc.content && !newDoc.file)) {
+    // Trim inputs
+    const trimmedTitle = newDoc.title.trim();
+    const trimmedSource = newDoc.source.trim();
+    const trimmedContent = newDoc.content.trim();
+
+    if (!trimmedTitle) {
       toast({
-        title: 'Validation Error',
-        description: 'Title and either content or file are required',
+        title: 'Title Required',
+        description: 'Please enter a title for the document',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!trimmedContent && !newDoc.file) {
+      toast({
+        title: 'Content Required',
+        description: 'Please either upload a file or paste text content',
         variant: 'destructive'
       });
       return;
@@ -140,14 +154,21 @@ const DocumentManagement = () => {
       try {
         uploadSchema.parse({
           file: newDoc.file,
-          title: newDoc.title,
-          source: newDoc.source || undefined
+          title: trimmedTitle,
+          source: trimmedSource || undefined
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
+          const errorMsg = error.errors[0].message;
+          toast({
+            title: 'File Validation Failed',
+            description: errorMsg,
+            variant: 'destructive'
+          });
+        } else {
           toast({
             title: 'Validation Error',
-            description: error.errors[0].message,
+            description: 'Invalid file upload',
             variant: 'destructive'
           });
         }
@@ -182,12 +203,16 @@ const DocumentManagement = () => {
       }
 
       // Insert document record with owner_id for RLS
+      const trimmedTitle = newDoc.title.trim();
+      const trimmedContent = newDoc.content.trim();
+      const trimmedSource = newDoc.source.trim();
+
       const { error: insertError } = await supabase
         .from('documents')
         .insert({
-          title: newDoc.title,
-          content: newDoc.content || `File: ${newDoc.file?.name}`,
-          source: newDoc.source || 'Uploaded',
+          title: trimmedTitle,
+          content: trimmedContent || `File: ${newDoc.file?.name}`,
+          source: trimmedSource || 'Uploaded',
           file_path: filePath,
           file_size: fileSize,
           mime_type: mimeType,
@@ -196,18 +221,22 @@ const DocumentManagement = () => {
         });
 
       if (insertError) {
-        throw insertError;
+        throw new Error(insertError.message || 'Failed to save document to database');
       }
 
       // Get the inserted document ID
-      const { data: insertedDoc } = await supabase
+      const { data: insertedDoc, error: fetchError } = await supabase
         .from('documents')
         .select('id')
-        .eq('title', newDoc.title)
+        .eq('title', trimmedTitle)
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error fetching inserted document:', fetchError);
+      }
 
       if (insertedDoc) {
         // Trigger background processing
