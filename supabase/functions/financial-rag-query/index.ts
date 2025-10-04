@@ -115,9 +115,19 @@ serve(async (req) => {
   }
 
   const errorResponse = (error: typeof ERROR_CODES[keyof typeof ERROR_CODES], details?: string) => {
+    // Always return 200 status so frontend can handle the error gracefully
     return new Response(
-      JSON.stringify({ error: error.code, message: error.message, details, request_id: requestId }),
-      { status: error.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        answer: `⚠️ ${error.message}${details ? '\n\n' + details : ''}`,
+        retrievedChunks: [],
+        metadata: {
+          error: error.code, 
+          message: error.message, 
+          details, 
+          request_id: requestId 
+        }
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   };
 
