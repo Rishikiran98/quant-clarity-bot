@@ -59,27 +59,43 @@ async function logError(supabase: any, requestId: string, userId: string, errorC
 // Helper function to generate embeddings via OpenAI
 async function generateEmbedding(text: string): Promise<number[]> {
   const openaiKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openaiKey) throw new Error('OPENAI_API_KEY not configured');
-
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openaiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      input: text,
-      model: 'text-embedding-3-small',
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI embedding failed: ${response.status} - ${errorText}`);
+  console.log(`[EMBEDDING] Checking OPENAI_API_KEY... ${openaiKey ? 'EXISTS' : 'MISSING'}`);
+  
+  if (!openaiKey) {
+    console.error('[EMBEDDING] CRITICAL: OPENAI_API_KEY not configured!');
+    throw new Error('OPENAI_API_KEY not configured');
   }
 
-  const data = await response.json();
-  return data.data[0].embedding;
+  console.log(`[EMBEDDING] Calling OpenAI API for text length: ${text.length} chars`);
+  
+  try {
+    const response = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: text,
+        model: 'text-embedding-3-small',
+      }),
+    });
+
+    console.log(`[EMBEDDING] OpenAI API response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[EMBEDDING] OpenAI API error: ${response.status} - ${errorText}`);
+      throw new Error(`OpenAI embedding failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log(`[EMBEDDING] Successfully got embedding with ${data.data[0].embedding.length} dimensions`);
+    return data.data[0].embedding;
+  } catch (error) {
+    console.error('[EMBEDDING] Exception during embedding generation:', error);
+    throw error;
+  }
 }
 
 // ============================================================================
@@ -91,7 +107,10 @@ serve(async (req) => {
   const startTime = Date.now();
   const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
 
+  console.log(`[${requestId}] === NEW REQUEST === Method: ${req.method}, IP: ${clientIp}`);
+
   if (req.method === 'OPTIONS') {
+    console.log(`[${requestId}] CORS preflight - returning OPTIONS response`);
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -106,18 +125,28 @@ serve(async (req) => {
   let supabase: any;
 
   try {
+    console.log(`[${requestId}] Checking authorization header...`);
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return errorResponse(ERROR_CODES.AUTH_401);
+    if (!authHeader) {
+      console.error(`[${requestId}] No authorization header found`);
+      return errorResponse(ERROR_CODES.AUTH_401);
+    }
 
+    console.log(`[${requestId}] Creating Supabase client...`);
     supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    console.log(`[${requestId}] Authenticating user...`);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return errorResponse(ERROR_CODES.AUTH_401);
+    if (authError || !user) {
+      console.error(`[${requestId}] Auth failed:`, authError?.message || 'No user');
+      return errorResponse(ERROR_CODES.AUTH_401);
+    }
     userId = user.id;
+    console.log(`[${requestId}] User authenticated: ${userId}`);
 
     // Rate limiting
     const { data: isOverLimit } = await supabase.rpc('over_limit', { p_user: userId, p_limit: RATE_LIMIT });
