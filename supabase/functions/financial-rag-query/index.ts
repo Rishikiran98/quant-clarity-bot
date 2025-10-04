@@ -144,7 +144,7 @@ serve(async (req) => {
     const dbStart = Date.now();
     const { data: chunks, error: searchError } = await supabase.rpc('search_documents', {
       query_embedding: queryEmbedding,
-      match_count: 20, // Retrieve 20 chunks for re-ranking
+      match_count: 30, // Retrieve 30 chunks for better re-ranking
       p_user_id: userId
     });
     const dbLatency = Date.now() - dbStart;
@@ -184,13 +184,13 @@ serve(async (req) => {
 
     // Apply re-ranking with keyword matching and diversity
     const rerankStart = Date.now();
-    const rerankedChunks = rerankChunks(query, chunks, 8); // Top 8 after re-ranking
+    const rerankedChunks = rerankChunks(query, chunks, 12, 0.4); // Top 12 with more diversity
     const rerankLatency = Date.now() - rerankStart;
     
     console.log(`[${requestId}] Re-ranked ${chunks.length} chunks to top ${rerankedChunks.length} in ${rerankLatency}ms`);
     
-    // Filter by minimum relevance threshold (lowered after re-ranking)
-    const relevantChunks = rerankedChunks.filter((c: any) => c.similarity >= 0.35);
+    // Filter by minimum relevance threshold - aggressive for high confidence
+    const relevantChunks = rerankedChunks.filter((c: any) => c.similarity >= 0.25);
     
     if (relevantChunks.length === 0) {
       const maxSim = Math.max(...chunks.map((c: any) => c.similarity));
@@ -240,26 +240,30 @@ serve(async (req) => {
 ${c.chunk_text.trim()}`;
     }).join('\n\n' + '='.repeat(80) + '\n\n');
     
-    // Enhanced prompt for financial analysis
-    const systemPrompt = `You are an expert financial analysis assistant with deep knowledge of corporate finance, accounting, and investment analysis.
+    // Enhanced prompt for financial analysis with confidence requirement
+    const systemPrompt = `You are an expert financial analyst providing precise, source-grounded answers.
 
-TASK: Provide a comprehensive, accurate answer to the user's question based EXCLUSIVELY on the provided source documents.
+CRITICAL REQUIREMENT: Answer with 100% confidence using ONLY the provided sources. If sources fully support an answer, provide it comprehensively. If not, explicitly state information gaps.
 
-INSTRUCTIONS:
-1. **Synthesize & Structure**: Combine information from multiple sources. Structure your answer clearly with sections or bullet points
-2. **Cite Sources**: Use inline citations [S1], [S2], etc. for every key fact, figure, or claim
-3. **Be Specific**: Include exact numbers, dates, percentages, and metrics from the sources
-4. **Handle Conflicts**: If sources contain contradictory information, acknowledge both perspectives with citations
-5. **Acknowledge Gaps**: If sources don't fully answer the question, clearly state what's missing
-6. **Professional Tone**: Write in clear, professional style for financial analysis
-7. **No Hallucination**: Never introduce information not present in the sources
+ANSWER STRUCTURE:
+1. **Direct Answer First**: Lead with the core answer in 1-2 sentences
+2. **Supporting Details**: Provide specific numbers, metrics, and context from sources
+3. **Source Citations**: Use [S1], [S2] inline for every fact
+4. **Confidence Note**: If answer is partial, clearly state what's missing
+
+QUALITY STANDARDS:
+• Extract ALL relevant details (numbers, dates, percentages, trends)
+• Synthesize across multiple sources when they complement each other
+• Be precise - quote exact figures and timeframes
+• Acknowledge any uncertainty or missing information
+• Professional, concise language
 
 QUESTION: ${query}
 
-AVAILABLE SOURCES:
+SOURCE DOCUMENTS:
 ${context}
 
-Provide your comprehensive answer with inline citations:`;
+Provide your high-confidence answer:`;
 
     const llmStart = Date.now();
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -269,10 +273,10 @@ Provide your comprehensive answer with inline citations:`;
         'Content-Type': 'application/json' 
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro', // Using Pro for better reasoning
+        model: 'google/gemini-2.5-pro', // Using Pro for superior reasoning
         messages: [{ role: 'user', content: systemPrompt }],
-        temperature: 0.3, // Lower for more focused responses
-        max_tokens: 2000,
+        temperature: 0.2, // Lower for more precise, confident responses
+        max_tokens: 2500,
       }),
     });
 
