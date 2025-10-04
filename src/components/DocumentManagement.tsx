@@ -365,12 +365,12 @@ const DocumentManagement = () => {
           <FileText className="h-6 w-6 text-primary" />
           <div>
             <h3 className="text-xl font-bold">Document Management</h3>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               {isAdmin && <Badge variant="outline" className="mt-1">
                 <Shield className="h-3 w-3 mr-1" />
                 Admin
               </Badge>}
-            </p>
+            </div>
           </div>
         </div>
 
