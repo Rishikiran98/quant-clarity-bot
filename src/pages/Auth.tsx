@@ -40,12 +40,12 @@ const Auth = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (view === 'update') {
       // Validate new password
       const passwordSchema = z.string().min(6, { message: 'Password must be at least 6 characters' });
       const passwordResult = passwordSchema.safeParse(newPassword);
-      
+
       if (!passwordResult.success) {
         toast({
           title: 'Validation Error',
@@ -56,16 +56,13 @@ const Auth = () => {
       }
 
       setIsLoading(true);
-
       try {
         const { error } = await updatePassword(newPassword);
         if (error) throw error;
-        
         toast({
           title: 'Password Updated',
           description: 'Your password has been successfully updated'
         });
-        
         navigate('/');
       } catch (error: any) {
         toast({
@@ -78,12 +75,12 @@ const Auth = () => {
       }
       return;
     }
-    
+
     if (view === 'reset') {
       // Validate email only for password reset
       const emailSchema = z.string().trim().email({ message: 'Invalid email address' }).max(255);
       const emailResult = emailSchema.safeParse(email);
-      
+
       if (!emailResult.success) {
         toast({
           title: 'Validation Error',
@@ -94,16 +91,13 @@ const Auth = () => {
       }
 
       setIsLoading(true);
-
       try {
         const { error } = await resetPassword(email);
         if (error) throw error;
-        
         toast({
           title: 'Password Reset Email Sent',
           description: 'Check your email for the password reset link'
         });
-        
         setView('login');
       } catch (error: any) {
         toast({
@@ -116,7 +110,7 @@ const Auth = () => {
       }
       return;
     }
-    
+
     // Validate inputs for signup/login
     const result = authSchema.safeParse({ email, password });
     if (!result.success) {
@@ -134,14 +128,12 @@ const Auth = () => {
       if (view === 'signup') {
         const { error } = await signUp(email, password);
         if (error) throw error;
-        
-        // Sign out immediately to prevent auto-login
+
+        // Optional: sign out immediately (keeps email-confirm flow consistent)
         await signOut();
-        
-        // Switch to login view and clear password
+
         setView('login');
         setPassword('');
-        
         toast({
           title: 'Account Created',
           description: 'Please sign in with your credentials'
@@ -149,7 +141,6 @@ const Auth = () => {
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
-        
         toast({
           title: 'Welcome Back',
           description: 'Successfully signed in'
@@ -166,6 +157,26 @@ const Auth = () => {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await signIn('demo@quantclarity.app', 'demopassword');
+      if (error) throw error;
+      toast({
+        title: 'Demo Login',
+        description: 'You are now signed in as a demo user'
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Demo Login Failed',
+        description: error.message || 'Unable to sign in as demo user',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-card to-background p-4">
       <Card className="w-full max-w-md p-8 border-primary/20">
@@ -174,10 +185,10 @@ const Auth = () => {
             Financial RAG System
           </h1>
           <p className="text-muted-foreground">
-            {view === 'signup' 
-              ? 'Create a new account' 
-              : view === 'reset' 
-                ? 'Reset your password' 
+            {view === 'signup'
+              ? 'Create a new account'
+              : view === 'reset'
+                ? 'Reset your password'
                 : view === 'update'
                   ? 'Set your new password'
                   : 'Sign in to your account'}
@@ -227,8 +238,8 @@ const Auth = () => {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {view === 'signup' 
-                  ? 'Creating Account...' 
+                {view === 'signup'
+                  ? 'Creating Account...'
                   : view === 'reset'
                     ? 'Sending Reset Link...'
                     : view === 'update'
@@ -243,13 +254,9 @@ const Auth = () => {
                     Create Account
                   </>
                 ) : view === 'reset' ? (
-                  <>
-                    Send Reset Link
-                  </>
+                  <>Send Reset Link</>
                 ) : view === 'update' ? (
-                  <>
-                    Update Password
-                  </>
+                  <>Update Password</>
                 ) : (
                   <>
                     <LogIn className="mr-2 h-4 w-4" />
@@ -260,6 +267,18 @@ const Auth = () => {
             )}
           </Button>
         </form>
+
+        {/* Demo Login Button */}
+        {view !== 'update' && (
+          <Button
+            variant="outline"
+            className="w-full mt-4"
+            disabled={isLoading}
+            onClick={handleDemoLogin}
+          >
+            Continue as Guest
+          </Button>
+        )}
 
         {view !== 'update' && (
           <div className="mt-6 text-center space-y-2">
@@ -287,8 +306,8 @@ const Auth = () => {
               }}
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
-              {view === 'signup' 
-                ? 'Already have an account? Sign in' 
+              {view === 'signup'
+                ? 'Already have an account? Sign in'
                 : view === 'reset'
                   ? 'Back to sign in'
                   : "Don't have an account? Sign up"}
