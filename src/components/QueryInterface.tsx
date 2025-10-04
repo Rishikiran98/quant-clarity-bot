@@ -31,7 +31,11 @@ interface RetrievedChunk {
 
 const MAX_QUERY_LENGTH = 500;
 
-const QueryInterface = () => {
+interface QueryInterfaceProps {
+  onQueryComplete?: () => void;
+}
+
+const QueryInterface = ({ onQueryComplete }: QueryInterfaceProps = {}) => {
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -104,6 +108,11 @@ const QueryInterface = () => {
       setRetrievedChunks(chunks);
       setAnswer(responseAnswer);
       setShowResults(true);
+      
+      // Notify parent that query completed
+      if (onQueryComplete) {
+        onQueryComplete();
+      }
       
       // Save to database (non-blocking)
       if (user && chunks.length > 0) {

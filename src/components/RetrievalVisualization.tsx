@@ -35,6 +35,21 @@ const RetrievalVisualization = ({ chunks }: Props) => {
     });
   };
 
+  // Clean LaTeX and formatting from text
+  const cleanText = (text: string): string => {
+    return text
+      // Remove LaTeX commands
+      .replace(/\\begin\{aligned\}.*?\\end\{aligned\}/gs, '[Mathematical Formula]')
+      .replace(/\\text\{([^}]+)\}/g, '$1')
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)')
+      .replace(/\$\$.*?\$\$/g, '[Formula]')
+      .replace(/\\\[.*?\\\]/gs, '[Formula]')
+      .replace(/\\[a-zA-Z]+/g, '') // Remove remaining LaTeX commands
+      .replace(/\{|\}/g, '') // Remove braces
+      .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
+      .trim();
+  };
+
   const downloadAllChunks = () => {
     const content = chunks.map((chunk, idx) => {
       return `
@@ -49,7 +64,7 @@ ${chunk.metadata?.category ? `Category: ${chunk.metadata.category}` : ''}
 ${chunk.metadata?.fiscal_year ? `Fiscal Year: ${chunk.metadata.fiscal_year}` : ''}
 
 CONTENT:
-${chunk.content}
+${cleanText(chunk.content)}
 
 `;
     }).join('\n\n');
@@ -112,7 +127,7 @@ ${chunk.content}
               
               <div className={`mb-3 ${isExpanded ? '' : 'line-clamp-4'}`}>
                 <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
-                  {chunk.content}
+                  {cleanText(chunk.content)}
                 </p>
               </div>
               

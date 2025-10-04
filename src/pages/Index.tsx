@@ -17,7 +17,13 @@ import { Sparkles } from "lucide-react";
 
 const Index = () => {
   const [selectedQuery, setSelectedQuery] = useState<string>("");
+  const [metricsKey, setMetricsKey] = useState(0);
   const { t } = useLanguage();
+
+  const handleQueryComplete = () => {
+    // Refresh metrics after query
+    setMetricsKey(prev => prev + 1);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -64,7 +70,7 @@ const Index = () => {
                   {t('dashboard.overviewDesc')}
                 </p>
               </div>
-              <KPICards />
+              <KPICards key={`kpi-${metricsKey}`} />
             </section>
 
             {/* Query Interface with Document Management */}
@@ -82,7 +88,7 @@ const Index = () => {
                       {t('dashboard.queryEngineDesc')}
                     </p>
                   </div>
-                  <QueryInterface />
+                  <QueryInterface onQueryComplete={handleQueryComplete} />
                 </TabsContent>
                 
                 <TabsContent value="documents">
@@ -113,7 +119,7 @@ const Index = () => {
 
             {/* System Metrics */}
             <section>
-              <MetricsDashboard />
+              <MetricsDashboard key={`metrics-${metricsKey}`} />
             </section>
 
             {/* Architecture */}
