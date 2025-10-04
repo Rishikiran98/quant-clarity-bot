@@ -400,14 +400,35 @@ Provide your high-confidence answer:`;
     );
 
   } catch (error) {
-    console.error(`[${requestId}] Error:`, error);
+    console.error(`[${requestId}] CRITICAL ERROR:`, error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     // Log error to database if we have userId
     if (userId && supabase) {
-      await logError(supabase, requestId, userId, 'SERVER_500', errorMessage, 'financial-rag-query', clientIp);
+      try {
+        await logError(supabase, requestId, userId, 'SERVER_500', errorMessage, 'financial-rag-query', clientIp);
+      } catch (logErr) {
+        console.error(`[${requestId}] Failed to log error:`, logErr);
+      }
     }
     
-    return errorResponse(ERROR_CODES.SERVER_500, errorMessage);
+    // Return user-friendly error as 200 response so frontend can display it
+    return new Response(
+      JSON.stringify({
+        answer: `⚠️ System Error: ${errorMessage}\n\nRequest ID: ${requestId}\n\nPlease check:\n• API configuration is correct\n• All required secrets are set\n• Backend services are running`,
+        retrievedChunks: [],
+        metadata: { 
+          query: '', 
+          chunksRetrieved: 0,
+          error: errorMessage,
+          request_id: requestId,
+          latencyMs: Date.now() - startTime
+        }
+      }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 });
