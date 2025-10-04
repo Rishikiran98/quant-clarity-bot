@@ -136,7 +136,17 @@ serve(async (req) => {
     // Generate embedding for the query
     console.log(`[${requestId}] Generating embedding for query: "${query.slice(0, 100)}..."`);
     const embStart = Date.now();
-    const queryEmbedding = await generateEmbedding(query);
+    
+    let queryEmbedding;
+    try {
+      queryEmbedding = await generateEmbedding(query);
+      console.log(`[${requestId}] Embedding generated successfully in ${Date.now() - embStart}ms`);
+    } catch (embError) {
+      console.error(`[${requestId}] Embedding generation failed:`, embError);
+      await logError(supabase, requestId, userId!, 'VECTOR_500', embError instanceof Error ? embError.message : 'Embedding failed', 'financial-rag-query', clientIp);
+      return errorResponse(ERROR_CODES.VECTOR_500, 'Failed to generate query embedding');
+    }
+    
     const embLatency = Date.now() - embStart;
     
     // Perform vector search using Supabase RPC - retrieve more for re-ranking
