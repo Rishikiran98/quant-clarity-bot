@@ -387,7 +387,7 @@ Provide your high-confidence answer:`;
         answer,
         retrievedChunks: relevantChunks.map((c: any) => ({ 
           id: c.chunk_id,
-          content: c.chunk_text.substring(0, 500), 
+          content: c.chunk_text, // Full content, no truncation
           source: c.doc_title || 'Unknown', 
           similarity: c.similarity,
           metadata: c.chunk_metadata || {}
