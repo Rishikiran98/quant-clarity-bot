@@ -35,29 +35,8 @@ const QueryInterface = () => {
   const [showResults, setShowResults] = useState(false);
   const [retrievedChunks, setRetrievedChunks] = useState<RetrievedChunk[]>([]);
   const [answer, setAnswer] = useState("");
-  const [hasDocuments, setHasDocuments] = useState<boolean | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-
-  // Check if user has documents
-  React.useEffect(() => {
-    const checkDocuments = async () => {
-      if (!user) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('documents')
-          .select('id', { count: 'exact', head: true });
-        
-        setHasDocuments(!error && (data?.length ?? 0) > 0);
-      } catch (error) {
-        console.error('Error checking documents:', error);
-        setHasDocuments(false);
-      }
-    };
-    
-    checkDocuments();
-  }, [user]);
 
   const handleSubmit = async () => {
     // Input validation
@@ -76,15 +55,6 @@ const QueryInterface = () => {
       toast({
         title: "Query Too Long",
         description: `Please keep your query under ${MAX_QUERY_LENGTH} characters (currently ${trimmedQuery.length}).`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (hasDocuments === false) {
-      toast({
-        title: "No Documents",
-        description: "Please upload documents to the knowledge base before querying.",
         variant: "destructive",
       });
       return;
@@ -173,70 +143,6 @@ const QueryInterface = () => {
       setIsLoading(false);
     }
   };
-
-  // Show empty state if no documents
-  if (hasDocuments === false) {
-    return (
-      <section className="container mx-auto px-6 py-12">
-        <div className="max-w-4xl mx-auto">
-          <Card className="p-12 text-center border-dashed border-2 border-border bg-gradient-to-br from-card/50 to-background">
-            <div className="mb-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4">
-                <Search className="w-10 h-10 text-primary" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">No Documents in Knowledge Base</h2>
-              <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                Upload financial documents, reports, or filings to start asking questions and get AI-powered insights.
-              </p>
-            </div>
-            
-            <div className="space-y-4 max-w-lg mx-auto">
-              <div className="text-left p-4 rounded-lg bg-background/50 border border-border/50">
-                <h3 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-primary">1.</span> Upload Documents
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Go to the "Documents" tab and upload PDFs, financial reports, or paste text content.
-                </p>
-              </div>
-              
-              <div className="text-left p-4 rounded-lg bg-background/50 border border-border/50">
-                <h3 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-primary">2.</span> Wait for Processing
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Documents are automatically processed and indexed for semantic search.
-                </p>
-              </div>
-              
-              <div className="text-left p-4 rounded-lg bg-background/50 border border-border/50">
-                <h3 className="font-semibold mb-2 flex items-center gap-2">
-                  <span className="text-primary">3.</span> Ask Questions
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Return here to query your documents with natural language questions.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <p className="text-sm text-muted-foreground mb-3">Example questions you'll be able to ask:</p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {exampleQueries.map((example, idx) => (
-                  <div
-                    key={idx}
-                    className="text-xs px-3 py-2 rounded-md bg-muted/50 border border-border/50 max-w-xs"
-                  >
-                    "{example.slice(0, 50)}..."
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="container mx-auto px-6 py-12">
