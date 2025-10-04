@@ -10,9 +10,11 @@ import RetrievalVisualization from "./RetrievalVisualization";
 import AnswerDisplay from "./AnswerDisplay";
 
 const exampleQueries = [
-  "What are the key risk factors disclosed in Tesla's latest 10-K filing?",
-  "Summarize Apple's revenue growth trends from recent earnings reports",
-  "What insurance risks does Progressive report regarding climate change?",
+  "What is value investing and how does it work?",
+  "Explain the concept of diversification in investing",
+  "What is the difference between ROA and other profitability metrics?",
+  "How do you calculate Net Present Value (NPV)?",
+  "What is the Price-to-Earnings ratio and how is it used?",
 ];
 
 interface RetrievedChunk {
