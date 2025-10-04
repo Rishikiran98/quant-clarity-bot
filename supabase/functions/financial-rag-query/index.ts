@@ -172,8 +172,25 @@ serve(async (req) => {
       console.log(`[${requestId}] Embedding generated successfully in ${Date.now() - embStart}ms`);
     } catch (embError) {
       console.error(`[${requestId}] Embedding generation failed:`, embError);
-      await logError(supabase, requestId, userId!, 'VECTOR_500', embError instanceof Error ? embError.message : 'Embedding failed', 'financial-rag-query', clientIp);
-      return errorResponse(ERROR_CODES.VECTOR_500, 'Failed to generate query embedding');
+      const errorMsg = embError instanceof Error ? embError.message : 'Embedding failed';
+      
+      // Return 200 with error message instead of error status
+      return new Response(
+        JSON.stringify({
+          answer: `⚠️ Error: ${errorMsg}\n\nPossible causes:\n• OpenAI API key not configured or invalid\n• OpenAI rate limit exceeded\n• Network issue\n\nPlease check your API key configuration.`,
+          retrievedChunks: [],
+          metadata: { 
+            query, 
+            chunksRetrieved: 0, 
+            error: errorMsg,
+            request_id: requestId 
+          }
+        }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
     
     const embLatency = Date.now() - embStart;
