@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, TrendingUp, ChevronDown, ChevronUp, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Chunk {
@@ -35,14 +35,55 @@ const RetrievalVisualization = ({ chunks }: Props) => {
     });
   };
 
+  const downloadAllChunks = () => {
+    const content = chunks.map((chunk, idx) => {
+      return `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RETRIEVED DOCUMENT ${idx + 1}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Source: ${chunk.source}
+Similarity Score: ${(chunk.similarity * 100).toFixed(1)}%
+${chunk.metadata?.ticker ? `Ticker: ${chunk.metadata.ticker}` : ''}
+${chunk.metadata?.category ? `Category: ${chunk.metadata.category}` : ''}
+${chunk.metadata?.fiscal_year ? `Fiscal Year: ${chunk.metadata.fiscal_year}` : ''}
+
+CONTENT:
+${chunk.content}
+
+`;
+    }).join('\n\n');
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `retrieved-documents-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card className="p-6 border-border bg-card animate-fade-in">
-      <div className="flex items-center gap-3 mb-6">
-        <FileText className="w-6 h-6 text-primary" />
-        <div>
-          <h3 className="text-xl font-bold">Retrieved Documents</h3>
-          <p className="text-sm text-muted-foreground">Top {chunks.length} relevant chunks</p>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <FileText className="w-6 h-6 text-primary" />
+          <div>
+            <h3 className="text-xl font-bold">Retrieved Documents</h3>
+            <p className="text-sm text-muted-foreground">Top {chunks.length} relevant chunks</p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={downloadAllChunks}
+          className="gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Download All
+        </Button>
       </div>
 
       <div className="space-y-4">
@@ -69,9 +110,11 @@ const RetrievalVisualization = ({ chunks }: Props) => {
                 </div>
               </div>
               
-              <p className={`text-sm text-foreground mb-3 transition-all ${isExpanded ? '' : 'line-clamp-3'}`}>
-                {chunk.content}
-              </p>
+              <div className={`mb-3 ${isExpanded ? '' : 'line-clamp-4'}`}>
+                <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
+                  {chunk.content}
+                </p>
+              </div>
               
               <Button
                 variant="ghost"
