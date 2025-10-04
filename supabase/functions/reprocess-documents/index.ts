@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { chunkTextSemantic } from "../_shared/chunkText.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,15 +33,15 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    console.log('Reprocessing documents for user:', user.id);
+    console.log('Reprocessing ALL documents for user:', user.id);
 
     // Create service role client for operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find all documents without embeddings
+    // Find ALL documents for this user
     const { data: documents, error: docsError } = await supabase
       .from('documents')
-      .select('id, title')
+      .select('id, title, content')
       .eq('owner_id', user.id);
 
     if (docsError) {
@@ -59,64 +60,51 @@ serve(async (req) => {
       );
     }
 
-    // Check which documents don't have embeddings
-    const documentsWithoutEmbeddings = [];
-    for (const doc of documents) {
-      const { data: embeddings } = await supabase
-        .from('embeddings')
-        .select('id')
-        .eq('document_id', doc.id)
-        .limit(1);
-
-      if (!embeddings || embeddings.length === 0) {
-        documentsWithoutEmbeddings.push(doc);
-      }
-    }
-
-    console.log(`Found ${documentsWithoutEmbeddings.length} documents without embeddings`);
+    console.log(`Found ${documents.length} documents to reprocess`);
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    // Import chunking function
-    const chunkText = (text: string, size = 1000, overlap = 200): string[] => {
-      const chunks: string[] = [];
-      let i = 0;
-      while (i < text.length) {
-        const end = Math.min(i + size, text.length);
-        const chunk = text.slice(i, end).trim();
-        if (chunk.length > 0) chunks.push(chunk);
-        i += size - overlap;
-      }
-      return chunks;
-    };
-
     // Process each document
     const results = [];
-    for (const doc of documentsWithoutEmbeddings) {
+    for (const doc of documents) {
       console.log(`Processing document: ${doc.title}`);
       
       try {
-        // Get the full document with content
-        const { data: fullDoc, error: docError } = await supabase
-          .from('documents')
-          .select('content')
-          .eq('id', doc.id)
-          .single();
-
-        if (docError || !fullDoc?.content) {
+        if (!doc.content || doc.content.length < 50) {
           results.push({ id: doc.id, title: doc.title, status: 'failed', error: 'No content found' });
           continue;
         }
 
-        // Chunk the text
-        const chunks = chunkText(fullDoc.content);
-        console.log(`Created ${chunks.length} chunks for ${doc.title}`);
+        // Delete existing chunks and embeddings for this document
+        console.log(`Deleting old chunks and embeddings for ${doc.title}`);
+        
+        const { error: deleteEmbeddingsError } = await supabase
+          .from('embeddings')
+          .delete()
+          .eq('document_id', doc.id);
+        
+        if (deleteEmbeddingsError) {
+          console.error('Error deleting embeddings:', deleteEmbeddingsError);
+        }
+
+        const { error: deleteChunksError } = await supabase
+          .from('document_chunks')
+          .delete()
+          .eq('document_id', doc.id);
+        
+        if (deleteChunksError) {
+          console.error('Error deleting chunks:', deleteChunksError);
+        }
+
+        // Chunk the text with the NEW semantic chunking algorithm
+        const chunks = chunkTextSemantic(doc.content, 1500, 500, 300);
+        console.log(`Created ${chunks.length} chunks for ${doc.title} using semantic chunking`);
 
         // Generate embeddings in batches
-        const batchSize = 10;
+        const batchSize = 100;
         const chunksWithEmbeddings: any[] = [];
 
         for (let i = 0; i < chunks.length; i += batchSize) {
@@ -145,13 +133,15 @@ serve(async (req) => {
             chunksWithEmbeddings.push({
               text,
               chunk_index: chunkIndex,
-              page_no: 1,
-              char_start: chunkIndex * 1000,
-              char_end: (chunkIndex + 1) * 1000,
+              page_no: Math.floor(chunkIndex / 3) + 1,
+              char_start: chunkIndex * 800,
+              char_end: (chunkIndex + 1) * 800,
               embedding: embeddingData.data[idx].embedding,
-              metadata: {}
+              metadata: { length: text.length }
             });
           });
+
+          console.log(`Generated embeddings for batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(chunks.length / batchSize)}`);
         }
 
         // Ingest chunks and embeddings
@@ -165,22 +155,24 @@ serve(async (req) => {
           throw ingestError;
         }
 
-        results.push({ id: doc.id, title: doc.title, status: 'success' });
-        console.log(`✓ Processed: ${doc.title}`);
+        results.push({ id: doc.id, title: doc.title, status: 'success', chunks: chunks.length });
+        console.log(`✓ Processed: ${doc.title} (${chunks.length} chunks)`);
       } catch (error: any) {
         results.push({ id: doc.id, title: doc.title, status: 'failed', error: error.message });
         console.error(`✗ Failed: ${doc.title}`, error);
       }
     }
 
+    const successCount = results.filter(r => r.status === 'success').length;
+    const failCount = results.filter(r => r.status === 'failed').length;
+
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Reprocessed ${results.filter(r => r.status === 'success').length} of ${documentsWithoutEmbeddings.length} documents`,
+        message: `Reprocessed ${successCount} of ${documents.length} documents`,
         total: documents.length,
-        needingReprocessing: documentsWithoutEmbeddings.length,
-        processed: results.filter(r => r.status === 'success').length,
-        failed: results.filter(r => r.status === 'failed').length,
+        processed: successCount,
+        failed: failCount,
         results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
