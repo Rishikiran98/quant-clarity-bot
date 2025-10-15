@@ -339,10 +339,9 @@ Provide your high-confidence answer:`;
         'Content-Type': 'application/json' 
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro', // Using Pro for superior reasoning
+        model: 'google/gemini-2.5-flash', // Fast and accurate for financial queries
         messages: [{ role: 'user', content: systemPrompt }],
-        temperature: 0.2, // Lower for more precise, confident responses
-        max_tokens: 2500,
+        max_tokens: 3000,
       }),
     });
 
