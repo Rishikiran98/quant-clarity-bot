@@ -33,17 +33,20 @@ const AdminDashboard = () => {
         <div className="container mx-auto px-6 py-12">
           <div className="max-w-4xl">
             <div className="flex items-center gap-3 mb-4">
-              <Shield className="h-10 w-10 text-primary" />
               <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
                 Admin Dashboard
               </h1>
               <Badge variant="secondary" className="flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                ADMIN
+              </Badge>
+              <Badge variant="secondary" className="flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
-                FULL ACCESS
+                BETA
               </Badge>
             </div>
             <p className="text-lg text-muted-foreground max-w-2xl mb-4">
-              Complete system overview with performance metrics, analytics, and database management
+              Full system access with performance metrics, database management, and advanced analytics.
             </p>
             <FeedbackDialog />
           </div>
@@ -65,9 +68,9 @@ const AdminDashboard = () => {
             {/* KPI Cards */}
             <section>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold">{t('dashboard.overview')}</h2>
+                <h2 className="text-2xl font-bold">System Overview</h2>
                 <p className="text-sm text-muted-foreground">
-                  System-wide performance and usage metrics
+                  Real-time system performance and usage metrics
                 </p>
               </div>
               <KPICards key={`kpi-${metricsKey}`} />
@@ -78,14 +81,14 @@ const AdminDashboard = () => {
               <Tabs defaultValue="query" className="w-full">
                 <TabsList className="mb-6">
                   <TabsTrigger value="query">Query Engine</TabsTrigger>
-                  <TabsTrigger value="documents">All Documents</TabsTrigger>
+                  <TabsTrigger value="documents">Document Management</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="query">
                   <div className="mb-4">
                     <h2 className="text-2xl font-bold">Query Engine</h2>
                     <p className="text-sm text-muted-foreground">
-                      Test queries and view system responses
+                      Test the RAG system with advanced query capabilities
                     </p>
                   </div>
                   <QueryInterface onQueryComplete={handleQueryComplete} />
@@ -102,7 +105,7 @@ const AdminDashboard = () => {
               <div className="mb-6">
                 <h2 className="text-2xl font-bold">Advanced Analytics</h2>
                 <p className="text-sm text-muted-foreground">
-                  Deep insights into system performance and retrieval quality
+                  Deep insights into retrieval quality and system behavior
                 </p>
               </div>
               
@@ -133,7 +136,10 @@ const AdminDashboard = () => {
       <footer className="border-t border-border py-8 mt-12">
         <div className="container mx-auto px-6 text-center text-muted-foreground">
           <p className="text-sm">
-            Financial RAG System • Admin Panel • Powered by Lovable AI
+            Financial RAG System • Powered by Lovable AI (Gemini 2.5 Flash)
+          </p>
+          <p className="text-xs mt-2">
+            Production-grade LLMOps pipeline for grounded, auditable financial intelligence
           </p>
         </div>
       </footer>

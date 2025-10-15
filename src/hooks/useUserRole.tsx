@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export type UserRole = 'admin' | 'moderator' | 'user' | null;
 
-export function useUserRole() {
+export const useUserRole = () => {
   const { user } = useAuth();
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchRole() {
+    const fetchUserRole = async () => {
       if (!user) {
         setRole(null);
         setLoading(false);
@@ -24,18 +24,22 @@ export function useUserRole() {
           .eq('user_id', user.id)
           .single();
 
-        if (error) throw error;
-        setRole(data?.role || 'user');
+        if (error) {
+          console.error('Error fetching user role:', error);
+          setRole('user'); // Default to user role
+        } else {
+          setRole(data?.role as UserRole || 'user');
+        }
       } catch (error) {
-        console.error('Error fetching user role:', error);
-        setRole('user'); // Default to user role
+        console.error('Exception fetching user role:', error);
+        setRole('user');
       } finally {
         setLoading(false);
       }
-    }
+    };
 
-    fetchRole();
+    fetchUserRole();
   }, [user]);
 
-  return { role, loading, isAdmin: role === 'admin', isUser: role === 'user' };
-}
+  return { role, loading, isAdmin: role === 'admin' };
+};
